@@ -67,6 +67,8 @@ The dashboard reports the paths independently; one host may be ready locally, re
 
 The dashboard remains unelevated. A separate, narrowly scoped helper may perform Host Files or Connect to Files changes only after its design milestone is complete and the user approves a precise preview. v0.4.0 may use an unsigned portable build and a public GitHub bootstrap for rapid install/update; v0.8.0 remains responsible for the signed official installer and complete distribution lifecycle. See [ADR 0001](adr/0001-separate-dashboard-and-privileged-setup.md).
 
+The unsigned v0.4 helper is an explicit pilot exception, not the production trust model. Its narrowed pipe, PID, identity, request-expiry, fixed-operation, and Unknown Publisher consent requirements are recorded in [ADR 0006](adr/0006-allow-explicit-unsigned-v0.4-pilot-helper.md).
+
 Before mutating work begins, its architecture must define:
 
 - which operations require elevation and why;

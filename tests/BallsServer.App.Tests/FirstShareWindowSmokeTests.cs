@@ -23,7 +23,8 @@ public sealed class FirstShareWindowSmokeTests
             var now = new DateTimeOffset(2026, 8, 17, 19, 0, 0, TimeSpan.Zero);
             var presentation = new FirstSharePresentation(
                 new AcceptingFolderValidator(),
-                new FixedTimeProvider(now));
+                new FixedTimeProvider(now),
+                new CompletingHostSetupCoordinator());
 
             var hostWindow = new FirstShareWindow(presentation, FirstSharePage.HostFiles);
             RenderOffscreen(hostWindow);
@@ -44,6 +45,16 @@ public sealed class FirstShareWindowSmokeTests
                 Descendants<TextBlock>(hostWindow),
                 text => text.Text == "What Balls Server will change" &&
                     text.Visibility == Visibility.Visible);
+            var applyButton = AssertAccessibleControl(
+                hostWindow,
+                "Apply Host Files setup",
+                typeof(Button));
+            applyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            RenderOffscreen(hostWindow);
+            AssertAccessibleControl(
+                hostWindow,
+                "Generated Balls Server setup code",
+                typeof(TextBox));
             hostWindow.Close();
 
             var grant = new SetupCodeGrant(
@@ -74,6 +85,24 @@ public sealed class FirstShareWindowSmokeTests
                 Descendants<TextBlock>(connectWindow),
                 text => text.Text.Contains(grant.Password, StringComparison.Ordinal));
             connectWindow.Close();
+
+            var helperRequest = new HostSetupRequest(
+                HostSetupProtocol.CurrentVersion,
+                "0123456789abcdef0123456789abcdef",
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "S-1-5-21-100-200-300-1001",
+                now,
+                now.AddMinutes(2),
+                @"C:\Shared",
+                AccessPathKind.Local);
+            var approvalWindow = new BallsServer.Helper.HostSetupApprovalWindow(helperRequest);
+            RenderOffscreen(approvalWindow);
+
+            AssertAccessibleControl(approvalWindow, "Approved managed folder", typeof(TextBlock));
+            AssertAccessibleControl(approvalWindow, "Cancel host setup", typeof(Button));
+            AssertAccessibleControl(approvalWindow, "Approve host setup", typeof(Button));
+            AssertLogoRendered(approvalWindow);
+            approvalWindow.Close();
         });
     }
 
@@ -173,5 +202,13 @@ public sealed class FirstShareWindowSmokeTests
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => value;
+    }
+
+    private sealed class CompletingHostSetupCoordinator : IHostSetupCoordinator
+    {
+        public Task<HostSetupResult> ApplyAsync(
+            HostSetupPreview request,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(HostSetupResult.Completed("BALLS1.synthetic-code"));
     }
 }

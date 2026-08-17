@@ -1,0 +1,23 @@
+<Application x:Class="BallsServer.Helper.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Application.Resources>
+    <SolidColorBrush x:Key="WindowBrush" Color="#FFF7F8FA" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="TextBrush" Color="#FF18212F" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#FF526070" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#FFD8DEE7" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF2356A8" />
+    <Style TargetType="Window">
+      <Setter Property="Background" Value="{StaticResource WindowBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="FontFamily" Value="Segoe UI" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style TargetType="Button">
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="MinWidth" Value="104" />
+      <Setter Property="Padding" Value="16,6" />
+    </Style>
+  </Application.Resources>
+</Application>

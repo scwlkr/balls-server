@@ -90,6 +90,25 @@ public partial class FirstShareWindow : Window, INotifyPropertyChanged
     public IReadOnlyList<string> HostChanges =>
         _presentation.HostPreview?.Changes ?? Array.Empty<string>();
 
+    public bool CanApplyHostSetup =>
+        _presentation.CanApplyHostSetup && _presentation.HostSetupState != HostSetupState.Applying;
+
+    public string HostApplyButtonText => _presentation.HostSetupState == HostSetupState.Applying
+        ? "Connecting to Balls Server…"
+        : "Apply setup";
+
+    public string HostSetupMessage => _presentation.HostSetupMessage ?? string.Empty;
+
+    public Visibility HostSetupStatusVisibility => _presentation.HostSetupState == HostSetupState.Idle
+        ? Visibility.Collapsed
+        : Visibility.Visible;
+
+    public string GeneratedSetupCode => _presentation.GeneratedSetupCode ?? string.Empty;
+
+    public Visibility GeneratedSetupCodeVisibility => _presentation.GeneratedSetupCode is null
+        ? Visibility.Collapsed
+        : Visibility.Visible;
+
     public string SetupCode
     {
         get => _presentation.SetupCode;
@@ -126,6 +145,17 @@ public partial class FirstShareWindow : Window, INotifyPropertyChanged
 
     private void PreviewHostSetupButton_Click(object sender, RoutedEventArgs e) =>
         _presentation.PreviewHostSetup();
+
+    private async void ApplyHostSetupButton_Click(object sender, RoutedEventArgs e) =>
+        await _presentation.ApplyHostSetupAsync();
+
+    private void CopySetupCodeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_presentation.GeneratedSetupCode is { Length: > 0 } setupCode)
+        {
+            Clipboard.SetText(setupCode);
+        }
+    }
 
     private void PreviewConnectionButton_Click(object sender, RoutedEventArgs e) =>
         _presentation.PreviewConnection();

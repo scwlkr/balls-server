@@ -4,14 +4,14 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** in-progress
 
-**Implementation:** pending
+**Implementation:** Typed expiring request/response protocol, current-user named-pipe coordinator, separate UAC helper and approval window, generated limited credential, fixed stdin-only PowerShell mutation plan, rollback path, protected ownership ledger, and setup-code response are implemented. Stop Sharing, crash reconciliation, and disposable-VM execution evidence remain.
 
-- [ ] The dashboard sends only a typed, versioned, expiring authorized request to the helper after preview and consent.
+- [x] The dashboard sends only a typed, versioned, expiring authorized request to the helper after preview and consent.
 - [ ] The helper refuses unsupported folders, unmanaged conflicts, unsafe SMB state, unsafe firewall scope, stale requests, caller substitution, and partial ownership ambiguity.
 - [ ] Successful setup creates the approved group/account, NTFS/share permissions, share, and selected private firewall rule with minimum privilege.
-- [ ] The protected ledger and setup result contain no plaintext secret outside the approved one-time handoff.
+- [x] The protected ledger and setup result contain no plaintext secret outside the approved one-time handoff.
 - [ ] Repeated setup is idempotent; failure and cancellation reconcile to a known recoverable state.
 - [ ] Stop Sharing removes only product-owned host configuration and preserves the folder and files.
 - [ ] Default tests stay unelevated/non-mutating; isolated mutation tests cover real Windows behavior.
@@ -19,3 +19,4 @@
 ## Comments
 
 - 2026-08-17: Ready after Ticket 01 establishes the production contracts.
+- 2026-08-17: Background-only implementation checkpoint: the real WPF helper view renders off-screen, request/response frames round-trip with strict bounds, setup-code and command diagnostics redact secrets, the fixed PowerShell plan passes the PowerShell parser without execution, and process arguments contain neither the managed-folder path nor credential. No Windows mutation was run on the development computer.

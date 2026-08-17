@@ -1,0 +1,59 @@
+<Window x:Class="BallsServer.Helper.HostSetupApprovalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Balls Server — Approve Host Setup"
+        Width="660"
+        Height="600"
+        MinWidth="580"
+        MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        KeyboardNavigation.TabNavigation="Cycle">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <Grid Margin="28">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Border Padding="20" Background="#FF111827" CornerRadius="16">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Border Width="76" Height="76" Margin="0,0,18,0" Padding="7" Background="White" CornerRadius="16">
+            <Image Source="/BallsServer.Helper;component/Assets/balls-server-logo.png" Stretch="Uniform" />
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <TextBlock Foreground="#FF93C5FD" FontSize="12" FontWeight="Bold" Text="WINDOWS ADMINISTRATOR APPROVAL" />
+            <TextBlock Margin="0,4,0,0" Foreground="White" FontSize="26" FontWeight="SemiBold" Text="Apply Host Files setup" />
+            <TextBlock Margin="0,5,0,0" Foreground="#FFD1D5DB" Text="Review the authoritative changes before anything is modified." TextWrapping="Wrap" />
+          </StackPanel>
+        </Grid>
+      </Border>
+      <Border Grid.Row="1" Margin="0,18,0,0" Padding="20" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12">
+        <StackPanel>
+          <TextBlock FontSize="18" FontWeight="SemiBold" Text="Balls Server will make these changes" />
+          <TextBlock Margin="0,12,0,0" FontWeight="SemiBold" Text="Folder" />
+          <TextBlock Margin="0,3,0,0" AutomationProperties.Name="Approved managed folder" FontFamily="Cascadia Mono" Text="{Binding ManagedFolder}" TextWrapping="Wrap" />
+          <TextBlock Margin="0,12,0,0" FontWeight="SemiBold" Text="Private access path" />
+          <TextBlock Margin="0,3,0,0" Text="{Binding AccessPathLabel}" />
+          <ItemsControl Margin="0,13,0,0" ItemsSource="{Binding Changes}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Margin="0,4,0,0" Text="{Binding StringFormat=• {0}}" TextWrapping="Wrap" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Border Margin="0,15,0,0" Padding="12" Background="#FFFFF8E2" BorderBrush="#FFE3B84C" BorderThickness="1" CornerRadius="6">
+            <TextBlock Text="This unsigned pilot helper will trigger an Unknown Publisher UAC warning. It never enables guest access, changes SMB server policy, or deletes the selected folder." TextWrapping="Wrap" />
+          </Border>
+        </StackPanel>
+      </Border>
+      <StackPanel Grid.Row="2" Margin="0,18,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+        <Button Margin="0,0,10,0" AutomationProperties.Name="Cancel host setup" Click="CancelButton_Click" Content="Cancel" IsCancel="True" />
+        <Button AutomationProperties.Name="Approve host setup" Background="{StaticResource AccentBrush}" BorderBrush="{StaticResource AccentBrush}" Click="ApplyButton_Click" Content="Apply changes" Foreground="White" IsDefault="True" />
+      </StackPanel>
+    </Grid>
+  </ScrollViewer>
+</Window>

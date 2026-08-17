@@ -10,10 +10,23 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\BallsServer.Core\BallsServer.Core.csproj" />
+    <ProjectReference Include="..\BallsServer.Helper\BallsServer.Helper.csproj"
+                      ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\BallsServer.Presentation\BallsServer.Presentation.csproj" />
     <ProjectReference Include="..\BallsServer.Windows\BallsServer.Windows.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="..\..\balls-server-logo.png" Link="Assets\balls-server-logo.png" />
   </ItemGroup>
+  <Target Name="CopyBallsServerHelper" AfterTargets="Build">
+    <ItemGroup>
+      <BallsServerHelperFile Include="..\BallsServer.Helper\bin\$(Configuration)\$(TargetFramework)\BallsServer.Helper.exe" />
+      <BallsServerHelperFile Include="..\BallsServer.Helper\bin\$(Configuration)\$(TargetFramework)\BallsServer.Helper.dll" />
+      <BallsServerHelperFile Include="..\BallsServer.Helper\bin\$(Configuration)\$(TargetFramework)\BallsServer.Helper.deps.json" />
+      <BallsServerHelperFile Include="..\BallsServer.Helper\bin\$(Configuration)\$(TargetFramework)\BallsServer.Helper.runtimeconfig.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BallsServerHelperFile)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

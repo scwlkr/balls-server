@@ -16,7 +16,8 @@ public partial class App : Application
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
         var firstSharePresentation = new FirstSharePresentation(
             new SystemFolderValidator(),
-            TimeProvider.System);
+            TimeProvider.System,
+            new ElevatedHostSetupCoordinator());
         var window = new MainWindow(presentation, firstSharePresentation);
         MainWindow = window;
         window.Show();

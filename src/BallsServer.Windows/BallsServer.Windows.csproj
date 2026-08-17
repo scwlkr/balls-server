@@ -9,4 +9,10 @@
   <ItemGroup>
     <InternalsVisibleTo Include="BallsServer.Windows.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Scripts\HostSetup.ps1"
+          Link="HostSetup.ps1"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

@@ -14,6 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\BallsServer.App\BallsServer.App.csproj" />
+    <ProjectReference Include="..\..\src\BallsServer.Helper\BallsServer.Helper.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

@@ -40,4 +40,26 @@ public sealed class SetupCodeCodecTests
 
         Assert.Equal("That setup code contains a public or unsupported host.", exception.Message);
     }
+
+    [Theory]
+    [InlineData("WrongShare", "BallsClient-7H4K2M", "correct-horse-battery-staple-47")]
+    [InlineData("Balls", "Administrator", "correct-horse-battery-staple-47")]
+    [InlineData("Balls", "BallsClient-7H4K2M", "short")]
+    public void DecodeRejectsAnIncompleteOrOverpoweredCredential(
+        string shareName,
+        string userName,
+        string password)
+    {
+        var now = new DateTimeOffset(2026, 8, 17, 19, 0, 0, TimeSpan.Zero);
+        var encoded = SetupCodeCodec.Encode(new SetupCodeGrant(
+            SetupCodeCodec.CurrentVersion,
+            AccessPathKind.Local,
+            "OWNER-PC",
+            shareName,
+            userName,
+            password,
+            now.AddMinutes(10)));
+
+        Assert.Throws<FormatException>(() => SetupCodeCodec.Decode(encoded, now));
+    }
 }

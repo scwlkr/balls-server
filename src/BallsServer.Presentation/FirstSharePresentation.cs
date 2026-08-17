@@ -21,10 +21,28 @@ public sealed record ConnectionSetupPreview(
     string CredentialLabel,
     IReadOnlyList<string> Changes);
 
+public enum HostSetupState
+{
+    Idle,
+    Applying,
+    Completed,
+    Canceled,
+    Refused,
+    Failed,
+}
+
+public interface IHostSetupCoordinator
+{
+    Task<HostSetupResult> ApplyAsync(
+        HostSetupPreview request,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed class FirstSharePresentation : INotifyPropertyChanged
 {
     private readonly IFolderValidator _folderValidator;
     private readonly TimeProvider _timeProvider;
+    private readonly IHostSetupCoordinator? _hostSetupCoordinator;
     private FirstSharePage _activePage;
     private string _hostFolder = string.Empty;
     private AccessPathKind _hostAccessPath = AccessPathKind.Local;
@@ -34,14 +52,21 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
     private SetupCodeGrant? _connectionGrant;
     private ConnectionSetupPreview? _connectionPreview;
     private string? _connectionValidationMessage;
+    private HostSetupState _hostSetupState;
+    private string? _hostSetupMessage;
+    private string? _generatedSetupCode;
 
-    public FirstSharePresentation(IFolderValidator folderValidator, TimeProvider timeProvider)
+    public FirstSharePresentation(
+        IFolderValidator folderValidator,
+        TimeProvider timeProvider,
+        IHostSetupCoordinator? hostSetupCoordinator = null)
     {
         ArgumentNullException.ThrowIfNull(folderValidator);
         ArgumentNullException.ThrowIfNull(timeProvider);
 
         _folderValidator = folderValidator;
         _timeProvider = timeProvider;
+        _hostSetupCoordinator = hostSetupCoordinator;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -57,6 +82,12 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
     public string? HostValidationMessage => _hostValidationMessage;
 
     public bool CanApplyHostSetup => HostPreview is not null;
+
+    public HostSetupState HostSetupState => _hostSetupState;
+
+    public string? HostSetupMessage => _hostSetupMessage;
+
+    public string? GeneratedSetupCode => _generatedSetupCode;
 
     public string SetupCode => _setupCode;
 
@@ -115,6 +146,40 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanApplyHostSetup));
     }
 
+    public async Task ApplyHostSetupAsync(CancellationToken cancellationToken = default)
+    {
+        if (HostPreview is null || _hostSetupState == HostSetupState.Applying)
+        {
+            return;
+        }
+
+        if (_hostSetupCoordinator is null)
+        {
+            SetHostSetupResult(HostSetupResult.Refused("Host setup is unavailable in this build."));
+            return;
+        }
+
+        _hostSetupState = HostSetupState.Applying;
+        _hostSetupMessage = "Waiting for Windows approval and the elevated setup preview…";
+        _generatedSetupCode = null;
+        NotifyHostSetupChanged();
+
+        try
+        {
+            SetHostSetupResult(await _hostSetupCoordinator
+                .ApplyAsync(HostPreview, cancellationToken)
+                .ConfigureAwait(true));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            SetHostSetupResult(HostSetupResult.Canceled());
+        }
+        catch (Exception)
+        {
+            SetHostSetupResult(HostSetupResult.Failed());
+        }
+    }
+
     public void SetSetupCode(string setupCode)
     {
         ArgumentNullException.ThrowIfNull(setupCode);
@@ -157,9 +222,13 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
     {
         _hostPreview = null;
         _hostValidationMessage = null;
+        _hostSetupState = HostSetupState.Idle;
+        _hostSetupMessage = null;
+        _generatedSetupCode = null;
         OnPropertyChanged(nameof(HostPreview));
         OnPropertyChanged(nameof(HostValidationMessage));
         OnPropertyChanged(nameof(CanApplyHostSetup));
+        NotifyHostSetupChanged();
     }
 
     private void ClearConnectionPreview()
@@ -186,6 +255,28 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
         AccessPathKind.Tailscale => "Tailscale",
         _ => throw new ArgumentOutOfRangeException(nameof(accessPath)),
     };
+
+    private void SetHostSetupResult(HostSetupResult result)
+    {
+        _hostSetupState = result.Status switch
+        {
+            HostSetupResultStatus.Completed => HostSetupState.Completed,
+            HostSetupResultStatus.Canceled => HostSetupState.Canceled,
+            HostSetupResultStatus.Refused => HostSetupState.Refused,
+            HostSetupResultStatus.Failed => HostSetupState.Failed,
+            _ => HostSetupState.Failed,
+        };
+        _hostSetupMessage = result.PublicMessage;
+        _generatedSetupCode = result.Succeeded ? result.SetupCode : null;
+        NotifyHostSetupChanged();
+    }
+
+    private void NotifyHostSetupChanged()
+    {
+        OnPropertyChanged(nameof(HostSetupState));
+        OnPropertyChanged(nameof(HostSetupMessage));
+        OnPropertyChanged(nameof(GeneratedSetupCode));
+    }
 
     private void OnPropertyChanged(string propertyName) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

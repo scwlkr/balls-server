@@ -126,6 +126,49 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <Button Margin="0,16,0,0"
+                        HorizontalAlignment="Left"
+                        AutomationProperties.Name="Apply Host Files setup"
+                        Background="{StaticResource AccentBrush}"
+                        BorderBrush="{StaticResource AccentBrush}"
+                        Click="ApplyHostSetupButton_Click"
+                        Content="{Binding HostApplyButtonText}"
+                        Foreground="White"
+                        IsEnabled="{Binding CanApplyHostSetup}" />
+              </StackPanel>
+            </Border>
+            <TextBlock Margin="0,14,0,0"
+                       AutomationProperties.LiveSetting="Polite"
+                       AutomationProperties.Name="Host setup progress"
+                       FontWeight="SemiBold"
+                       Text="{Binding HostSetupMessage}"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding HostSetupStatusVisibility}" />
+            <Border Margin="0,14,0,0"
+                    Padding="16"
+                    Background="#FFE8F5EC"
+                    BorderBrush="#FF75A884"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Visibility="{Binding GeneratedSetupCodeVisibility}">
+              <StackPanel>
+                <TextBlock FontSize="16"
+                           FontWeight="SemiBold"
+                           Text="Setup code ready" />
+                <TextBlock Margin="0,5,0,10"
+                           Foreground="{StaticResource MutedTextBrush}"
+                           Text="Send this code only to the approved client. It contains the limited credential."
+                           TextWrapping="Wrap" />
+                <TextBox MinHeight="90"
+                         AutomationProperties.Name="Generated Balls Server setup code"
+                         IsReadOnly="True"
+                         Text="{Binding GeneratedSetupCode, Mode=OneWay}"
+                         TextWrapping="Wrap" />
+                <Button Margin="0,10,0,0"
+                        HorizontalAlignment="Left"
+                        AutomationProperties.Name="Copy setup code"
+                        Click="CopySetupCodeButton_Click"
+                        Content="Copy setup code" />
               </StackPanel>
             </Border>
           </StackPanel>

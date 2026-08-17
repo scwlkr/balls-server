@@ -47,7 +47,7 @@ File-sharing functionality is local-first and requires no Balls Server cloud acc
 
 ## Current program position
 
-v0.1.0, the unelevated read-only Host Files preflight; v0.2.0, the accepted Host Dashboard; and v0.3.0, the accepted setup security and architecture design, are Complete. v0.4.0 First Working Share is the next Proposed milestone: it pulls one complete host-to-client File Explorer path forward while remaining inside the accepted mutation envelope. No setup mutation is implemented yet. [The roadmap](ROADMAP.md) is the source of truth for current state, accomplished work, remaining work, and completion evidence.
+v0.1.0, the unelevated read-only Host Files preflight; v0.2.0, the accepted Host Dashboard; and v0.3.0, the accepted setup security and architecture design, are Complete. v0.4.0 First Working Share is In progress: its same-app workflow is complete and its separate pilot helper, typed authorization protocol, and fixed host-mutation runner are under implementation. Real isolated mutation and two-computer verification are still required before the flow is called complete. [The roadmap](ROADMAP.md) is the source of truth for current state, accomplished work, remaining work, and completion evidence.
 
 ## Permanent non-goals
 

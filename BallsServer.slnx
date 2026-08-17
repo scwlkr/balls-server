@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/BallsServer.App/BallsServer.App.csproj" />
     <Project Path="src/BallsServer.Core/BallsServer.Core.csproj" />
+    <Project Path="src/BallsServer.Helper/BallsServer.Helper.csproj" />
     <Project Path="src/BallsServer.Presentation/BallsServer.Presentation.csproj" />
     <Project Path="src/BallsServer.Windows/BallsServer.Windows.csproj" />
   </Folder>

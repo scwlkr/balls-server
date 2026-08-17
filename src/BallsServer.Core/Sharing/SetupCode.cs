@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace BallsServer.Core.Sharing;
 
@@ -62,6 +63,20 @@ public static class SetupCodeCodec
                 throw new FormatException("That setup code has expired. Create a new access grant on the host.");
             }
 
+            if (!Enum.IsDefined(grant.AccessPath) ||
+                grant.ShareName != "Balls" ||
+                string.IsNullOrEmpty(grant.UserName) ||
+                !Regex.IsMatch(
+                    grant.UserName,
+                    "^BallsClient-[A-Z0-9]{6}$",
+                    RegexOptions.CultureInvariant) ||
+                string.IsNullOrEmpty(grant.Password) ||
+                grant.Password.Length is < 20 or > 128 ||
+                grant.Password.Any(static character => character is < '!' or > '~'))
+            {
+                throw new FormatException("That setup code contains an invalid limited credential.");
+            }
+
             if (!IsSupportedHost(grant.AccessPath, grant.HostName))
             {
                 throw new FormatException("That setup code contains a public or unsupported host.");
@@ -108,7 +123,20 @@ public static class SetupCodeCodec
 
         if (!IPAddress.TryParse(hostName, out var address))
         {
-            return Uri.CheckHostName(hostName) == UriHostNameType.Dns;
+            if (Uri.CheckHostName(hostName) != UriHostNameType.Dns)
+            {
+                return false;
+            }
+
+            return accessPath switch
+            {
+                AccessPathKind.Local => Regex.IsMatch(
+                    hostName,
+                    "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,13}[A-Za-z0-9])?$",
+                    RegexOptions.CultureInvariant),
+                AccessPathKind.Tailscale => hostName.EndsWith(".ts.net", StringComparison.OrdinalIgnoreCase),
+                _ => false,
+            };
         }
 
         var bytes = address.GetAddressBytes();

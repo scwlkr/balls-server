@@ -59,6 +59,28 @@ public sealed class FirstSharePresentationTests
         Assert.True(presentation.CanApplyConnection);
     }
 
+    [Fact]
+    public async Task ApplyHostSetupPublishesOneTimeCodeFromCoordinator()
+    {
+        var result = HostSetupResult.Completed("BALLS1.synthetic-code");
+        var coordinator = new RecordingHostSetupCoordinator(result);
+        var presentation = new FirstSharePresentation(
+            new AcceptingFolderValidator(),
+            TimeProvider.System,
+            coordinator);
+
+        presentation.ShowHostFiles();
+        presentation.SelectHostFolder(@"C:\Shared");
+        presentation.PreviewHostSetup();
+        await presentation.ApplyHostSetupAsync();
+
+        Assert.Equal(@"C:\Shared", coordinator.Request?.ManagedFolder);
+        Assert.Equal(AccessPathKind.Local, coordinator.Request?.AccessPath);
+        Assert.Equal(HostSetupState.Completed, presentation.HostSetupState);
+        Assert.Equal("BALLS1.synthetic-code", presentation.GeneratedSetupCode);
+        Assert.DoesNotContain("synthetic-code", presentation.ToString(), StringComparison.Ordinal);
+    }
+
     private sealed class AcceptingFolderValidator : IFolderValidator
     {
         public FolderValidation Validate(string path) => FolderValidation.Valid(path);
@@ -67,5 +89,18 @@ public sealed class FirstSharePresentationTests
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => value;
+    }
+
+    private sealed class RecordingHostSetupCoordinator(HostSetupResult result) : IHostSetupCoordinator
+    {
+        public HostSetupPreview? Request { get; private set; }
+
+        public Task<HostSetupResult> ApplyAsync(
+            HostSetupPreview request,
+            CancellationToken cancellationToken = default)
+        {
+            Request = request;
+            return Task.FromResult(result);
+        }
     }
 }

@@ -24,7 +24,8 @@ public sealed class FirstShareWindowSmokeTests
             var presentation = new FirstSharePresentation(
                 new AcceptingFolderValidator(),
                 new FixedTimeProvider(now),
-                new CompletingHostSetupCoordinator());
+                new CompletingHostSetupCoordinator(),
+                new CompletingClientConnectionService());
 
             var hostWindow = new FirstShareWindow(presentation, FirstSharePage.HostFiles);
             RenderOffscreen(hostWindow);
@@ -62,7 +63,7 @@ public sealed class FirstShareWindowSmokeTests
                 AccessPathKind.Tailscale,
                 "owner-pc.example.ts.net",
                 "Balls",
-                "BallsClient-7H4K2M",
+                @"OWNER-PC\BallsClient-7H4K2M",
                 "synthetic-test-password-47",
                 now.AddMinutes(10));
             var connectWindow = new FirstShareWindow(presentation, FirstSharePage.ConnectToFiles);
@@ -84,6 +85,18 @@ public sealed class FirstShareWindowSmokeTests
             Assert.DoesNotContain(
                 Descendants<TextBlock>(connectWindow),
                 text => text.Text.Contains(grant.Password, StringComparison.Ordinal));
+            AssertAccessibleControl(connectWindow, "Mapped drive letter", typeof(ComboBox));
+            AssertAccessibleControl(connectWindow, "Save limited credential", typeof(CheckBox));
+            var connectButton = AssertAccessibleControl(
+                connectWindow,
+                "Connect mapped drive",
+                typeof(Button));
+            connectButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            RenderOffscreen(connectWindow);
+            Assert.Contains(
+                Descendants<TextBlock>(connectWindow),
+                text => text.Text == "Balls Server is connected as drive P:." &&
+                    text.Visibility == Visibility.Visible);
             connectWindow.Close();
 
             var helperRequest = new HostSetupRequest(
@@ -210,5 +223,20 @@ public sealed class FirstShareWindowSmokeTests
             HostSetupPreview request,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(HostSetupResult.Completed("BALLS1.synthetic-code"));
+    }
+
+    private sealed class CompletingClientConnectionService : IClientConnectionService
+    {
+        public IReadOnlyList<char> GetAvailableDriveLetters() => ['P'];
+
+        public Task<ClientConnectionResult> ConnectAsync(
+            ClientConnectionRequest request,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ClientConnectionResult.Connected(
+                request.DriveLetter,
+                $@"\\{request.Grant.HostName}\{request.Grant.ShareName}"));
+
+        public Task<ClientConnectionResult> DisconnectAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(ClientConnectionResult.Disconnected());
     }
 }

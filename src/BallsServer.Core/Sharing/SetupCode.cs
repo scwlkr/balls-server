@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -68,7 +67,7 @@ public static class SetupCodeCodec
                 string.IsNullOrEmpty(grant.UserName) ||
                 !Regex.IsMatch(
                     grant.UserName,
-                    "^BallsClient-[A-Z0-9]{6}$",
+                    "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,13}[A-Za-z0-9])?\\\\BallsClient-[A-Z0-9]{6}$",
                     RegexOptions.CultureInvariant) ||
                 string.IsNullOrEmpty(grant.Password) ||
                 grant.Password.Length is < 20 or > 128 ||
@@ -121,7 +120,7 @@ public static class SetupCodeCodec
             return false;
         }
 
-        if (!IPAddress.TryParse(hostName, out var address))
+        if (!IPAddress.TryParse(hostName, out _))
         {
             if (Uri.CheckHostName(hostName) != UriHostNameType.Dns)
             {
@@ -139,26 +138,6 @@ public static class SetupCodeCodec
             };
         }
 
-        var bytes = address.GetAddressBytes();
-        if (accessPath == AccessPathKind.Tailscale)
-        {
-            return address.AddressFamily switch
-            {
-                AddressFamily.InterNetwork => bytes[0] == 100 && (bytes[1] & 0b1100_0000) == 64,
-                AddressFamily.InterNetworkV6 => bytes.AsSpan(0, 6).SequenceEqual(
-                    new byte[] { 0xfd, 0x7a, 0x11, 0x5c, 0xa1, 0xe0 }),
-                _ => false,
-            };
-        }
-
-        return address.AddressFamily switch
-        {
-            AddressFamily.InterNetwork =>
-                bytes[0] == 10 ||
-                bytes[0] == 192 && bytes[1] == 168 ||
-                bytes[0] == 172 && bytes[1] is >= 16 and <= 31,
-            AddressFamily.InterNetworkV6 => address.IsIPv6LinkLocal || (bytes[0] & 0xfe) == 0xfc,
-            _ => false,
-        };
+        return false;
     }
 }

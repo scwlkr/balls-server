@@ -13,7 +13,7 @@ public sealed class SetupCodeCodecTests
             AccessPathKind.Tailscale,
             "owner-pc.example.ts.net",
             "Balls",
-            "BallsClient-7H4K2M",
+            @"OWNER-PC\BallsClient-7H4K2M",
             "correct-horse-battery-staple-47",
             expiresAt);
 
@@ -32,7 +32,7 @@ public sealed class SetupCodeCodecTests
             AccessPathKind.Local,
             "8.8.8.8",
             "Balls",
-            "BallsClient-7H4K2M",
+            @"OWNER-PC\BallsClient-7H4K2M",
             "correct-horse-battery-staple-47",
             now.AddMinutes(10)));
 
@@ -41,10 +41,26 @@ public sealed class SetupCodeCodecTests
         Assert.Equal("That setup code contains a public or unsupported host.", exception.Message);
     }
 
+    [Fact]
+    public void DecodeRejectsAnIpEvenInsideTheTailscaleRange()
+    {
+        var now = new DateTimeOffset(2026, 8, 17, 19, 0, 0, TimeSpan.Zero);
+        var encoded = SetupCodeCodec.Encode(new SetupCodeGrant(
+            SetupCodeCodec.CurrentVersion,
+            AccessPathKind.Tailscale,
+            "100.100.10.20",
+            "Balls",
+            @"OWNER-PC\BallsClient-7H4K2M",
+            "correct-horse-battery-staple-47",
+            now.AddMinutes(10)));
+
+        Assert.Throws<FormatException>(() => SetupCodeCodec.Decode(encoded, now));
+    }
+
     [Theory]
-    [InlineData("WrongShare", "BallsClient-7H4K2M", "correct-horse-battery-staple-47")]
+    [InlineData("WrongShare", @"OWNER-PC\BallsClient-7H4K2M", "correct-horse-battery-staple-47")]
     [InlineData("Balls", "Administrator", "correct-horse-battery-staple-47")]
-    [InlineData("Balls", "BallsClient-7H4K2M", "short")]
+    [InlineData("Balls", @"OWNER-PC\BallsClient-7H4K2M", "short")]
     public void DecodeRejectsAnIncompleteOrOverpoweredCredential(
         string shareName,
         string userName,

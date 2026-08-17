@@ -40,7 +40,7 @@ public sealed class FirstSharePresentationTests
             AccessPathKind.Tailscale,
             "owner-pc.example.ts.net",
             "Balls",
-            "BallsClient-7H4K2M",
+            @"OWNER-PC\BallsClient-7H4K2M",
             "correct-horse-battery-staple-47",
             now.AddMinutes(10));
         var presentation = new FirstSharePresentation(
@@ -54,7 +54,7 @@ public sealed class FirstSharePresentationTests
         Assert.Equal(FirstSharePage.ConnectToFiles, presentation.ActivePage);
         Assert.Equal(@"\\owner-pc.example.ts.net\Balls", presentation.ConnectionPreview?.Endpoint);
         Assert.Equal(AccessPathKind.Tailscale, presentation.ConnectionPreview?.AccessPath);
-        Assert.Equal("BallsClient-7H4K2M", presentation.ConnectionPreview?.CredentialLabel);
+        Assert.Equal(@"OWNER-PC\BallsClient-7H4K2M", presentation.ConnectionPreview?.CredentialLabel);
         Assert.DoesNotContain(grant.Password, presentation.ConnectionPreview?.ToString(), StringComparison.Ordinal);
         Assert.True(presentation.CanApplyConnection);
     }
@@ -81,6 +81,37 @@ public sealed class FirstSharePresentationTests
         Assert.DoesNotContain("synthetic-code", presentation.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ConnectUsesTheExactDecodedEndpointAndSelectedDrive()
+    {
+        var now = new DateTimeOffset(2026, 8, 17, 19, 0, 0, TimeSpan.Zero);
+        var service = new RecordingClientConnectionService();
+        var presentation = new FirstSharePresentation(
+            new AcceptingFolderValidator(),
+            new FixedTimeProvider(now),
+            clientConnectionService: service);
+        var grant = new SetupCodeGrant(
+            SetupCodeCodec.CurrentVersion,
+            AccessPathKind.Tailscale,
+            "owner-pc.example.ts.net",
+            "Balls",
+            @"OWNER-PC\BallsClient-7H4K2M",
+            "correct-horse-battery-staple-47",
+            now.AddMinutes(10));
+
+        presentation.ShowConnectToFiles();
+        presentation.SetSetupCode(SetupCodeCodec.Encode(grant));
+        presentation.PreviewConnection();
+        presentation.SelectDriveLetter('P');
+        await presentation.ApplyConnectionAsync();
+
+        Assert.Equal(grant, service.Request?.Grant);
+        Assert.Equal('P', service.Request?.DriveLetter);
+        Assert.True(service.Request?.SaveCredential);
+        Assert.Equal(ClientConnectionState.Connected, presentation.ClientConnectionState);
+        Assert.DoesNotContain(grant.Password, service.Request?.ToString(), StringComparison.Ordinal);
+    }
+
     private sealed class AcceptingFolderValidator : IFolderValidator
     {
         public FolderValidation Validate(string path) => FolderValidation.Valid(path);
@@ -102,5 +133,25 @@ public sealed class FirstSharePresentationTests
             Request = request;
             return Task.FromResult(result);
         }
+    }
+
+    private sealed class RecordingClientConnectionService : IClientConnectionService
+    {
+        public ClientConnectionRequest? Request { get; private set; }
+
+        public IReadOnlyList<char> GetAvailableDriveLetters() => ['P', 'Q'];
+
+        public Task<ClientConnectionResult> ConnectAsync(
+            ClientConnectionRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Request = request;
+            return Task.FromResult(ClientConnectionResult.Connected(
+                request.DriveLetter,
+                $@"\\{request.Grant.HostName}\{request.Grant.ShareName}"));
+        }
+
+        public Task<ClientConnectionResult> DisconnectAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(ClientConnectionResult.Disconnected());
     }
 }

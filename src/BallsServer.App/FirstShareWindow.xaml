@@ -227,8 +227,46 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <Grid Margin="0,15,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="110" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Drive letter" />
+                  <ComboBox Grid.Column="1"
+                            Margin="12,0,0,0"
+                            AutomationProperties.Name="Mapped drive letter"
+                            ItemsSource="{Binding AvailableDriveLetters}"
+                            SelectedItem="{Binding SelectedDriveLetter}"
+                            ToolTip="Choose an unused drive letter from D through Z." />
+                </Grid>
+                <CheckBox Margin="0,13,0,0"
+                          AutomationProperties.Name="Save limited credential"
+                          Content="Save the limited credential and reconnect at sign-in"
+                          IsChecked="{Binding SaveCredential}" />
+                <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
+                  <Button AutomationProperties.Name="Connect mapped drive"
+                          Background="{StaticResource AccentBrush}"
+                          BorderBrush="{StaticResource AccentBrush}"
+                          Click="ApplyConnectionButton_Click"
+                          Content="Connect"
+                          Foreground="White"
+                          IsEnabled="{Binding CanApplyConnection}" />
+                  <Button Margin="10,0,0,0"
+                          AutomationProperties.Name="Disconnect mapped drive"
+                          Click="DisconnectButton_Click"
+                          Content="Disconnect"
+                          Visibility="{Binding DisconnectButtonVisibility}" />
+                </StackPanel>
               </StackPanel>
             </Border>
+            <TextBlock Margin="0,14,0,0"
+                       AutomationProperties.LiveSetting="Polite"
+                       AutomationProperties.Name="Client connection progress"
+                       FontWeight="SemiBold"
+                       Text="{Binding ClientConnectionMessage}"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding ClientConnectionStatusVisibility}" />
           </StackPanel>
         </Grid>
       </Border>

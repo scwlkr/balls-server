@@ -31,6 +31,18 @@ public enum HostSetupState
     Failed,
 }
 
+public enum ClientConnectionState
+{
+    Idle,
+    Connecting,
+    Disconnecting,
+    Connected,
+    Disconnected,
+    Canceled,
+    Refused,
+    Failed,
+}
+
 public interface IHostSetupCoordinator
 {
     Task<HostSetupResult> ApplyAsync(
@@ -43,6 +55,7 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
     private readonly IFolderValidator _folderValidator;
     private readonly TimeProvider _timeProvider;
     private readonly IHostSetupCoordinator? _hostSetupCoordinator;
+    private readonly IClientConnectionService? _clientConnectionService;
     private FirstSharePage _activePage;
     private string _hostFolder = string.Empty;
     private AccessPathKind _hostAccessPath = AccessPathKind.Local;
@@ -55,11 +68,16 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
     private HostSetupState _hostSetupState;
     private string? _hostSetupMessage;
     private string? _generatedSetupCode;
+    private char _selectedDriveLetter;
+    private bool _saveCredential = true;
+    private ClientConnectionState _clientConnectionState;
+    private string? _clientConnectionMessage;
 
     public FirstSharePresentation(
         IFolderValidator folderValidator,
         TimeProvider timeProvider,
-        IHostSetupCoordinator? hostSetupCoordinator = null)
+        IHostSetupCoordinator? hostSetupCoordinator = null,
+        IClientConnectionService? clientConnectionService = null)
     {
         ArgumentNullException.ThrowIfNull(folderValidator);
         ArgumentNullException.ThrowIfNull(timeProvider);
@@ -67,6 +85,9 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
         _folderValidator = folderValidator;
         _timeProvider = timeProvider;
         _hostSetupCoordinator = hostSetupCoordinator;
+        _clientConnectionService = clientConnectionService;
+        AvailableDriveLetters = clientConnectionService?.GetAvailableDriveLetters() ?? ['Z'];
+        _selectedDriveLetter = AvailableDriveLetters.Count > 0 ? AvailableDriveLetters[0] : default;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -95,7 +116,21 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
 
     public string? ConnectionValidationMessage => _connectionValidationMessage;
 
-    public bool CanApplyConnection => _connectionGrant is not null && ConnectionPreview is not null;
+    public bool CanApplyConnection =>
+        _connectionGrant is not null &&
+        ConnectionPreview is not null &&
+        _selectedDriveLetter != default &&
+        _clientConnectionState is not ClientConnectionState.Connecting and not ClientConnectionState.Disconnecting;
+
+    public IReadOnlyList<char> AvailableDriveLetters { get; }
+
+    public char SelectedDriveLetter => _selectedDriveLetter;
+
+    public bool SaveCredential => _saveCredential;
+
+    public ClientConnectionState ClientConnectionState => _clientConnectionState;
+
+    public string? ClientConnectionMessage => _clientConnectionMessage;
 
     public void ShowHostFiles()
     {
@@ -218,6 +253,92 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanApplyConnection));
     }
 
+    public void SelectDriveLetter(char driveLetter)
+    {
+        driveLetter = char.ToUpperInvariant(driveLetter);
+        if (!AvailableDriveLetters.Contains(driveLetter))
+        {
+            throw new ArgumentOutOfRangeException(nameof(driveLetter));
+        }
+
+        _selectedDriveLetter = driveLetter;
+        OnPropertyChanged(nameof(SelectedDriveLetter));
+    }
+
+    public void SetSaveCredential(bool saveCredential)
+    {
+        _saveCredential = saveCredential;
+        OnPropertyChanged(nameof(SaveCredential));
+    }
+
+    public async Task ApplyConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        if (_connectionGrant is null || ConnectionPreview is null ||
+            _clientConnectionState == ClientConnectionState.Connecting)
+        {
+            return;
+        }
+
+        if (!_saveCredential)
+        {
+            SetClientConnectionResult(ClientConnectionResult.Refused(
+                "Consent to save the limited credential is required for a reconnecting drive."));
+            return;
+        }
+
+        if (_clientConnectionService is null || _selectedDriveLetter == default)
+        {
+            SetClientConnectionResult(ClientConnectionResult.Refused(
+                "No supported drive letter is available in this build."));
+            return;
+        }
+
+        _clientConnectionState = ClientConnectionState.Connecting;
+        _clientConnectionMessage = "Connecting to Balls Server…";
+        NotifyClientConnectionChanged();
+        try
+        {
+            SetClientConnectionResult(await _clientConnectionService.ConnectAsync(
+                new ClientConnectionRequest(_connectionGrant, _selectedDriveLetter, _saveCredential),
+                cancellationToken).ConfigureAwait(true));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            SetClientConnectionResult(ClientConnectionResult.Canceled());
+        }
+        catch (Exception)
+        {
+            SetClientConnectionResult(ClientConnectionResult.Failed());
+        }
+    }
+
+    public async Task DisconnectAsync(CancellationToken cancellationToken = default)
+    {
+        if (_clientConnectionService is null ||
+            _clientConnectionState is ClientConnectionState.Connecting or ClientConnectionState.Disconnecting)
+        {
+            return;
+        }
+
+        _clientConnectionState = ClientConnectionState.Disconnecting;
+        _clientConnectionMessage = "Disconnecting Balls Server…";
+        NotifyClientConnectionChanged();
+        try
+        {
+            SetClientConnectionResult(await _clientConnectionService
+                .DisconnectAsync(cancellationToken)
+                .ConfigureAwait(true));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            SetClientConnectionResult(ClientConnectionResult.Canceled());
+        }
+        catch (Exception)
+        {
+            SetClientConnectionResult(ClientConnectionResult.Failed());
+        }
+    }
+
     private void ClearHostPreview()
     {
         _hostPreview = null;
@@ -236,9 +357,12 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
         _connectionGrant = null;
         _connectionPreview = null;
         _connectionValidationMessage = null;
+        _clientConnectionState = ClientConnectionState.Idle;
+        _clientConnectionMessage = null;
         OnPropertyChanged(nameof(ConnectionPreview));
         OnPropertyChanged(nameof(ConnectionValidationMessage));
         OnPropertyChanged(nameof(CanApplyConnection));
+        NotifyClientConnectionChanged();
     }
 
     private static IReadOnlyList<string> CreateHostChanges(AccessPathKind accessPath) =>
@@ -276,6 +400,28 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
         OnPropertyChanged(nameof(HostSetupState));
         OnPropertyChanged(nameof(HostSetupMessage));
         OnPropertyChanged(nameof(GeneratedSetupCode));
+    }
+
+    private void SetClientConnectionResult(ClientConnectionResult result)
+    {
+        _clientConnectionState = result.Status switch
+        {
+            ClientConnectionResultStatus.Connected => ClientConnectionState.Connected,
+            ClientConnectionResultStatus.Disconnected => ClientConnectionState.Disconnected,
+            ClientConnectionResultStatus.Canceled => ClientConnectionState.Canceled,
+            ClientConnectionResultStatus.Refused => ClientConnectionState.Refused,
+            ClientConnectionResultStatus.Failed => ClientConnectionState.Failed,
+            _ => ClientConnectionState.Failed,
+        };
+        _clientConnectionMessage = result.PublicMessage;
+        NotifyClientConnectionChanged();
+    }
+
+    private void NotifyClientConnectionChanged()
+    {
+        OnPropertyChanged(nameof(ClientConnectionState));
+        OnPropertyChanged(nameof(ClientConnectionMessage));
+        OnPropertyChanged(nameof(CanApplyConnection));
     }
 
     private void OnPropertyChanged(string propertyName) =>

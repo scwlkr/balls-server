@@ -88,7 +88,17 @@ try {
     $remoteScope = 'LocalSubnet'
   }
   if ($addresses.Count -ne 1) { throw 'Exactly one supported private IPv4 address is required.' }
-  $endpoint = if ($payload.AccessPath -eq 'Tailscale') { $addresses[0] } else { $env:COMPUTERNAME }
+  if ($payload.AccessPath -eq 'Tailscale') {
+    $tailscalePath = Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Tailscale\tailscale.exe'
+    if (-not (Test-Path -LiteralPath $tailscalePath -PathType Leaf)) { throw 'Tailscale is unavailable.' }
+    $tailscaleStatusText = (& $tailscalePath status --json) -join [Environment]::NewLine
+    if ($LASTEXITCODE -ne 0) { throw 'Tailscale status is unavailable.' }
+    $tailscaleStatus = $tailscaleStatusText | ConvertFrom-Json
+    $endpoint = ([string]$tailscaleStatus.Self.DNSName).TrimEnd('.')
+    if (-not $endpoint.EndsWith('.ts.net', [StringComparison]::OrdinalIgnoreCase)) { throw 'Tailscale MagicDNS is unavailable.' }
+  } else {
+    $endpoint = $env:COMPUTERNAME
+  }
   $group = New-LocalGroup -Name $groupName -Description $marker
   $createdGroup = $true
   $securePassword = ConvertTo-SecureString ([string]$payload.Password) -AsPlainText -Force
@@ -125,7 +135,7 @@ try {
   Move-Item -LiteralPath $temporaryLedgerPath -Destination $ledgerPath -Force
   Set-ProtectedLedgerAcl $stateDirectory $ledgerPath
   $createdLedger = $true
-  [ordered]@{ hostName = $endpoint; shareName = $shareName; userName = [string]$payload.UserName } | ConvertTo-Json -Compress
+  [ordered]@{ hostName = $endpoint; shareName = $shareName; userName = "$env:COMPUTERNAME\$($payload.UserName)" } | ConvertTo-Json -Compress
 } catch {
   if ($createdLedger -and (Test-Path -LiteralPath $ledgerPath)) { Remove-Item -LiteralPath $ledgerPath -Force -ErrorAction SilentlyContinue }
   if (Test-Path -LiteralPath $temporaryLedgerPath) { Remove-Item -LiteralPath $temporaryLedgerPath -Force -ErrorAction SilentlyContinue }

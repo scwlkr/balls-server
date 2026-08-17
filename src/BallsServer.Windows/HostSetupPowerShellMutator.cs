@@ -56,8 +56,14 @@ public sealed partial record HostSetupMutationOutput(
     {
         if (!IPAddress.TryParse(hostName, out var address))
         {
-            return accessPath == AccessPathKind.Local &&
-                HostNamePattern().IsMatch(hostName);
+            return accessPath switch
+            {
+                AccessPathKind.Local => HostNamePattern().IsMatch(hostName),
+                AccessPathKind.Tailscale => hostName.EndsWith(
+                    ".ts.net",
+                    StringComparison.OrdinalIgnoreCase),
+                _ => false,
+            };
         }
 
         if (address.AddressFamily != AddressFamily.InterNetwork)
@@ -72,12 +78,14 @@ public sealed partial record HostSetupMutationOutput(
                 bytes[0] == 10 ||
                 bytes[0] == 192 && bytes[1] == 168 ||
                 bytes[0] == 172 && bytes[1] is >= 16 and <= 31,
-            AccessPathKind.Tailscale => bytes[0] == 100 && bytes[1] is >= 64 and <= 127,
+            AccessPathKind.Tailscale => false,
             _ => false,
         };
     }
 
-    [GeneratedRegex("^BallsClient-[A-Z0-9]{6}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(
+        "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,13}[A-Za-z0-9])?\\\\BallsClient-[A-Z0-9]{6}$",
+        RegexOptions.CultureInvariant)]
     private static partial Regex UserNamePattern();
 
     [GeneratedRegex("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,13}[A-Za-z0-9])?$", RegexOptions.CultureInvariant)]

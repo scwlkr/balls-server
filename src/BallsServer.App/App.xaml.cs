@@ -17,7 +17,8 @@ public partial class App : Application
         var firstSharePresentation = new FirstSharePresentation(
             new SystemFolderValidator(),
             TimeProvider.System,
-            new ElevatedHostSetupCoordinator());
+            new ElevatedHostSetupCoordinator(),
+            new WindowsClientConnectionService());
         var window = new MainWindow(presentation, firstSharePresentation);
         MainWindow = window;
         window.Show();

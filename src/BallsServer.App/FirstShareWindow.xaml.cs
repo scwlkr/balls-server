@@ -129,6 +129,34 @@ public partial class FirstShareWindow : Window, INotifyPropertyChanged
     public IReadOnlyList<string> ConnectionChanges =>
         _presentation.ConnectionPreview?.Changes ?? Array.Empty<string>();
 
+    public IReadOnlyList<char> AvailableDriveLetters => _presentation.AvailableDriveLetters;
+
+    public char SelectedDriveLetter
+    {
+        get => _presentation.SelectedDriveLetter;
+        set => _presentation.SelectDriveLetter(value);
+    }
+
+    public bool SaveCredential
+    {
+        get => _presentation.SaveCredential;
+        set => _presentation.SetSaveCredential(value);
+    }
+
+    public bool CanApplyConnection => _presentation.CanApplyConnection;
+
+    public string ClientConnectionMessage => _presentation.ClientConnectionMessage ?? string.Empty;
+
+    public Visibility ClientConnectionStatusVisibility =>
+        _presentation.ClientConnectionState == ClientConnectionState.Idle
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+    public Visibility DisconnectButtonVisibility =>
+        _presentation.ClientConnectionState == ClientConnectionState.Connected
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
     private void BrowseHostFolderButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog
@@ -159,6 +187,12 @@ public partial class FirstShareWindow : Window, INotifyPropertyChanged
 
     private void PreviewConnectionButton_Click(object sender, RoutedEventArgs e) =>
         _presentation.PreviewConnection();
+
+    private async void ApplyConnectionButton_Click(object sender, RoutedEventArgs e) =>
+        await _presentation.ApplyConnectionAsync();
+
+    private async void DisconnectButton_Click(object sender, RoutedEventArgs e) =>
+        await _presentation.DisconnectAsync();
 
     protected override void OnClosed(EventArgs e)
     {

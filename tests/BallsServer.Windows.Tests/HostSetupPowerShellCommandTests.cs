@@ -57,15 +57,15 @@ public sealed class HostSetupPowerShellCommandTests
     public void OutputParserAcceptsOnlyTheBoundedPublicResult()
     {
         var output = HostSetupMutationOutput.Parse(
-            "{\"hostName\":\"100.100.10.20\",\"shareName\":\"Balls\",\"userName\":\"BallsClient-7H4K2M\"}",
+            "{\"hostName\":\"owner-pc.example.ts.net\",\"shareName\":\"Balls\",\"userName\":\"OWNER-PC\\\\BallsClient-7H4K2M\"}",
             AccessPathKind.Tailscale);
 
-        Assert.Equal("100.100.10.20", output.HostName);
+        Assert.Equal("owner-pc.example.ts.net", output.HostName);
         Assert.Throws<FormatException>(() => HostSetupMutationOutput.Parse(
-            "{\"hostName\":\"203.0.113.10\",\"shareName\":\"Balls\",\"userName\":\"BallsClient-7H4K2M\"}",
+            "{\"hostName\":\"public.example.com\",\"shareName\":\"Balls\",\"userName\":\"OWNER-PC\\\\BallsClient-7H4K2M\"}",
             AccessPathKind.Tailscale));
         Assert.Throws<FormatException>(() => HostSetupMutationOutput.Parse(
-            "{\"hostName\":\"100.100.10.20\",\"shareName\":\"Balls\",\"userName\":\"BallsClient-7H4K2M\",\"extra\":true}",
+            "{\"hostName\":\"owner-pc.example.ts.net\",\"shareName\":\"Balls\",\"userName\":\"OWNER-PC\\\\BallsClient-7H4K2M\",\"extra\":true}",
             AccessPathKind.Tailscale));
     }
 

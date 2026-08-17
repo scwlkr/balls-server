@@ -7,8 +7,8 @@ This is the small index for project position and sequencing. Open only the linke
 | Item | Position |
 | --- | --- |
 | Completed version | [v0.3.0 — Setup security and architecture design](roadmap/v0.3.0.md) |
-| Current milestone | [v0.4.0 — First Working Share](roadmap/v0.4.0.md), **Proposed** |
-| Next action | Define and implement the smallest complete host-to-client path from the accepted v0.3.0 design. |
+| Current milestone | [v0.4.0 — First Working Share](roadmap/v0.4.0.md), **Defined** |
+| Next action | Execute Ticket 01: same-app workflow, setup-code contract, and preview state. |
 | File-sharing destination | v1.0.0 official release |
 | Full product direction | v3.x Share Compute, after v2.x Balls Nodes |
 
@@ -27,7 +27,7 @@ Use **Blocked** only while a stated condition prevents progress. **Complete** re
 | [v0.1.0](roadmap/v0.1.0.md) | Complete | Unelevated, read-only Host Files preflight |
 | [v0.2.0](roadmap/v0.2.0.md) | Complete | Simple Host Dashboard with accurate per-path readiness |
 | [v0.3.0](roadmap/v0.3.0.md) | Complete | Approved setup, identity, trust, recovery, and test design |
-| [v0.4.0](roadmap/v0.4.0.md) | Proposed | First working two-computer share in File Explorer |
+| [v0.4.0](roadmap/v0.4.0.md) | Defined | First working two-computer share in File Explorer |
 | [v0.5.0](roadmap/v0.5.0.md) | Proposed | Pilot reliability and connection diagnostics |
 | [v0.6.0](roadmap/v0.6.0.md) | Proposed | Multiple access grants and path changes |
 | [v0.7.0](roadmap/v0.7.0.md) | Proposed | End-to-end verification, repair, access removal, and cleanup |

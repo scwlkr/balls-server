@@ -13,4 +13,7 @@
     <ProjectReference Include="..\BallsServer.Presentation\BallsServer.Presentation.csproj" />
     <ProjectReference Include="..\BallsServer.Windows\BallsServer.Windows.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="..\..\balls-server-logo.png" Link="Assets\balls-server-logo.png" />
+  </ItemGroup>
 </Project>

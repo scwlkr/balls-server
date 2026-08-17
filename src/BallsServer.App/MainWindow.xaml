@@ -38,15 +38,45 @@
         <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
 
-      <StackPanel Grid.Row="0">
-        <TextBlock FontSize="30"
-                   FontWeight="SemiBold"
-                   Text="Host Dashboard" />
-        <TextBlock Margin="0,6,0,0"
-                   Foreground="{StaticResource MutedTextBrush}"
-                   Text="Check whether this PC appears ready to host a folder for trusted Windows devices."
-                   TextWrapping="Wrap" />
-      </StackPanel>
+      <Grid Grid.Row="0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0"
+                Width="76"
+                Height="76"
+                Margin="0,0,18,0"
+                Padding="8"
+                Background="White"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="16">
+          <Image Source="/BallsServer;component/Assets/balls-server-logo.png"
+                 Stretch="Uniform" />
+        </Border>
+        <StackPanel Grid.Column="1">
+          <TextBlock FontSize="30"
+                     FontWeight="SemiBold"
+                     Text="Balls Server" />
+          <TextBlock Margin="0,4,0,0"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     Text="Share one folder with another Windows PC through File Explorer."
+                     TextWrapping="Wrap" />
+          <StackPanel Margin="0,14,0,0" Orientation="Horizontal">
+            <Button Margin="0,0,10,0"
+                    AutomationProperties.Name="Host files"
+                    Background="{StaticResource AccentBrush}"
+                    BorderBrush="{StaticResource AccentBrush}"
+                    Click="HostFilesButton_Click"
+                    Content="Host files"
+                    Foreground="White" />
+            <Button AutomationProperties.Name="Connect to files"
+                    Click="ConnectToFilesButton_Click"
+                    Content="Connect to files" />
+          </StackPanel>
+        </StackPanel>
+      </Grid>
 
       <Border Grid.Row="1"
               Margin="0,22,0,0"

@@ -14,7 +14,10 @@ public partial class App : Application
             WindowsPreflightFactory.CreateHostService(),
             new SystemFolderValidator(),
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-        var window = new MainWindow(presentation);
+        var firstSharePresentation = new FirstSharePresentation(
+            new SystemFolderValidator(),
+            TimeProvider.System);
+        var window = new MainWindow(presentation, firstSharePresentation);
         MainWindow = window;
         window.Show();
     }

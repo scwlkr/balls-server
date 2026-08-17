@@ -11,12 +11,17 @@ namespace BallsServer.App;
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private readonly IHostDashboardPresentation _presentation;
+    private readonly FirstSharePresentation _firstSharePresentation;
 
-    public MainWindow(IHostDashboardPresentation presentation)
+    public MainWindow(
+        IHostDashboardPresentation presentation,
+        FirstSharePresentation firstSharePresentation)
     {
         ArgumentNullException.ThrowIfNull(presentation);
+        ArgumentNullException.ThrowIfNull(firstSharePresentation);
 
         _presentation = presentation;
+        _firstSharePresentation = firstSharePresentation;
         _presentation.PropertyChanged += Presentation_PropertyChanged;
         SummaryAreas = new ObservableCollection<DashboardAreaViewModel>(CreateSummaryAreas());
         AdministratorInformation = AdministratorInformationViewModel.Pending();
@@ -84,6 +89,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         await _presentation.RefreshAsync();
 
     private void CancelButton_Click(object sender, RoutedEventArgs e) => _presentation.Cancel();
+
+    private void HostFilesButton_Click(object sender, RoutedEventArgs e) =>
+        new FirstShareWindow(_firstSharePresentation, FirstSharePage.HostFiles)
+        {
+            Owner = this,
+        }.ShowDialog();
+
+    private void ConnectToFilesButton_Click(object sender, RoutedEventArgs e) =>
+        new FirstShareWindow(_firstSharePresentation, FirstSharePage.ConnectToFiles)
+        {
+            Owner = this,
+        }.ShowDialog();
 
     protected override void OnClosed(EventArgs e)
     {

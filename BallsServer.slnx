@@ -6,6 +6,7 @@
     <Project Path="src/BallsServer.Windows/BallsServer.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/BallsServer.App.Tests/BallsServer.App.Tests.csproj" />
     <Project Path="tests/BallsServer.Core.Tests/BallsServer.Core.Tests.csproj" />
     <Project Path="tests/BallsServer.Presentation.Tests/BallsServer.Presentation.Tests.csproj" />
     <Project Path="tests/BallsServer.Windows.Tests/BallsServer.Windows.Tests.csproj" />

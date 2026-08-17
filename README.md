@@ -9,7 +9,7 @@ This is a public repository. Credentials, private host or network identifiers, r
 - **v0.1.0 — Complete:** unelevated, read-only Host Files preflight; 129 automated tests passed.
 - **v0.2.0 — Complete:** the accepted simple Host Dashboard has separate Local/Tailscale access-path readiness, corrected SMB/administrator policy, 210 passing automated tests, and complete supported-Windows UI/safety evidence.
 - **v0.3.0 — Complete:** the owner accepted the reviewed setup security and architecture design; the product remains read-only.
-- **v0.4.0 — Proposed:** the next milestone delivers the first working two-computer share: consent-driven hosting, a setup code, and a persistent File Explorer drive over LAN or Tailscale.
+- **v0.4.0 — In progress:** the public pilot implements consent-driven hosting, a setup code, and a persistent File Explorer drive over LAN or Tailscale. Disposable-machine mutation and two-computer pilot verification remain before milestone completion.
 
 [The roadmap](docs/ROADMAP.md) is the status source of truth. Its compact index links to each version's accomplished work, remaining work, exit checks, and evidence.
 
@@ -21,7 +21,19 @@ This is a public repository. Credentials, private host or network identifiers, r
 - **v2.x** introduces Balls Nodes and resource inventory.
 - **v3.x** introduces explicitly opt-in Share Compute for approved distributed workloads.
 
-The current application does not configure, repair, share, connect, install, or elevate. v0.4.0 now prioritizes one complete owner-to-client path before broader hardening: previewed setup, least privilege, basic product-owned change tracking, isolated tests, and safe stop/disconnect actions.
+The v0.4 pilot includes a separate UAC helper for previewed Host Files changes and an unelevated native Windows client connector. It is intentionally unsigned and is not the official production release.
+
+## Install or update the Windows pilot
+
+Paste this one line into PowerShell on either Windows computer:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/scwlkr/balls-server/main/install.ps1' | iex"
+```
+
+The bootstrap downloads the newest public GitHub release, verifies its published SHA-256 checksum, replaces only `%LOCALAPPDATA%\Balls Server\App`, preserves product state stored outside that directory, creates a Start Menu shortcut, and launches Balls Server. Running the same line again updates the app.
+
+Windows shows **Unknown Publisher** when the unsigned Host Files helper requests UAC. Approve it only after intentionally clicking **Apply setup** and reviewing the Balls Server change preview. Client connection does not require elevation.
 
 ## Safety boundary
 

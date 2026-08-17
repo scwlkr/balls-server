@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prototype — endpoint switching</title>
+  <style>
+    :root { --ink:#17242f; --muted:#62707c; --line:#d8e0e5; --paper:#f7f9fa; --card:#fff; --accent:#0c6c84; --good:#176b43; --warn:#9a5b08; --bad:#a33535; }
+    * { box-sizing:border-box; } body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1160px; margin:0 auto; padding:42px 24px 64px; } h1,h2,h3,p { margin-top:0; } h1 { font-size:30px; letter-spacing:-.03em; margin-bottom:8px; } h2 { font-size:17px; margin-bottom:14px; } h3 { font-size:14px; margin-bottom:7px; } .eyebrow { color:var(--accent); font-weight:700; font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
+    .intro { max-width:800px; color:#34444f; font-size:17px; } .notice { background:#e8f2f4; border-left:4px solid var(--accent); padding:13px 16px; margin:22px 0; }
+    .grid { display:grid; grid-template-columns:1.1fr .9fr; gap:20px; align-items:start; } .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+    .state-header { display:flex; gap:10px; align-items:center; justify-content:space-between; } .badge { border-radius:99px; padding:3px 9px; font-size:12px; font-weight:700; white-space:nowrap; } .ready { background:#e4f3ea;color:var(--good); } .action { background:#fff1dc;color:var(--warn); } .refused { background:#fae7e7;color:var(--bad); } .unknown { background:#e9edf0;color:#4d5b66; }
+    dl { margin:0; } dt { color:var(--muted); font-size:12px; margin-top:12px; } dd { margin:2px 0 0; font-weight:600; overflow-wrap:anywhere; } .endpoint { border-top:1px solid var(--line); margin-top:15px; padding-top:12px; } .endpoint:first-of-type { border-top:0; margin-top:0; padding-top:0; }
+    .root { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:13px; } .dim { color:var(--muted); font-weight:400; } .changed { background:#fff8dc; border-radius:5px; padding:9px; margin:14px 0 0; }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; } button { border:1px solid #b9c8d0; background:#fff; color:var(--ink); border-radius:6px; padding:8px 10px; cursor:pointer; font:inherit; } button:hover { border-color:var(--accent); } button.primary { background:var(--accent); color:#fff; border-color:var(--accent); } button.danger { color:var(--bad); border-color:#e3b6b6; } button:disabled { opacity:.48; cursor:not-allowed; }
+    .wide { grid-column:1/-1; } .tabs { display:flex; flex-wrap:wrap; gap:6px; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:16px; } .tabs button.active { background:var(--ink); color:#fff; border-color:var(--ink); } .steps { margin:12px 0 0; padding-left:22px; } .steps li { margin:8px 0; } .steps button { margin-left:8px; font-size:13px; padding:4px 8px; } .step-done { color:var(--good); font-weight:700; } .log { background:#17242f; color:#e5f1f2; border-radius:7px; padding:12px; min-height:80px; white-space:pre-wrap; font:13px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .rule { font-size:13px; color:var(--muted); margin-top:14px; } @media (max-width:800px) { .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Throwaway logic prototype · v0.3</div>
+  <h1>Explicit endpoint switching</h1>
+  <p class="intro"><strong>Question:</strong> can an owner understand that a trusted-LAN name and a full Tailscale MagicDNS name are separate SMB connection identities, and safely choose a switch without automatic fallback?</p>
+  <div class="notice">This is an in-memory demonstration only. It makes no network connection, stores no credential, and maps no drive. The state machine intentionally refuses shortcuts that a future product must not take.</div>
+
+  <section class="grid">
+    <article class="card">
+      <div class="state-header"><h2>Current state</h2><span id="outcomeBadge" class="badge"></span></div>
+      <div id="state"></div>
+    </article>
+    <article class="card">
+      <h2>Free play</h2>
+      <p class="dim">Try actions in any order. Refusals are useful evidence: they show which shortcuts this model forbids.</p>
+      <h3>Choose or observe a path</h3>
+      <div class="actions">
+        <button data-owner-control onclick="dispatch({type:'SELECT_PATH', path:'lan'})">Choose trusted local network</button>
+        <button data-owner-control onclick="dispatch({type:'SELECT_PATH', path:'tailscale'})">Choose private Tailscale</button>
+        <button data-owner-control onclick="dispatch({type:'MARK_PATH_DOWN', path:'lan'})">Mark LAN unavailable</button>
+        <button data-owner-control onclick="dispatch({type:'MARK_PATH_DOWN', path:'tailscale'})">Mark Tailscale unavailable</button>
+        <button data-owner-control onclick="dispatch({type:'REOBSERVE'})">Re-observe names</button>
+      </div>
+      <h3 style="margin-top:18px">Connect, switch, and conflicts</h3>
+      <div class="actions">
+        <button data-owner-control class="primary" onclick="dispatch({type:'VERIFY_SELECTED'})">Verify selected path once</button>
+        <button data-owner-control onclick="dispatch({type:'PREVIEW_SWITCH'})">Preview explicit switch</button>
+        <button data-owner-control class="primary" onclick="dispatch({type:'CONFIRM_SWITCH'})">Confirm switch &amp; verify once</button>
+        <button data-owner-control onclick="dispatch({type:'ADD_MAPPING'})">Record persistent mapping</button>
+        <button data-owner-control onclick="dispatch({type:'SET_CREDENTIAL_COLLISION'})">Introduce credential collision</button>
+        <button data-prototype-helper onclick="dispatch({type:'CLEAR_CREDENTIAL_COLLISION'})">Clear credential collision</button>
+      </div>
+      <h3 style="margin-top:18px">Guardrail probes</h3>
+      <div class="actions">
+        <button data-owner-control onclick="dispatch({type:'OPEN_IP_DIAGNOSTIC'})">Run IP transport observation</button>
+        <button data-owner-control class="danger" onclick="dispatch({type:'SELECT_IP_AS_ENDPOINT'})">Attempt IP as SMB endpoint</button>
+        <button data-owner-control class="danger" onclick="dispatch({type:'AUTO_FALLBACK'})">Attempt automatic fallback</button>
+        <button data-prototype-helper onclick="dispatch({type:'RESET'})">Reset</button>
+      </div>
+      <p class="rule">One authentication attempt occurs only after an explicit Verify or Confirm switch. The alternate endpoint is information, never retry input.</p>
+    </article>
+
+    <article class="card wide">
+      <h2>Guided walkthroughs <span class="dim" id="scenarioCount"></span></h2>
+      <div class="tabs" id="tabs"></div>
+      <div id="scenario"></div>
+    </article>
+    <article class="card wide">
+      <h2>Last transition</h2><div class="log" id="log"></div>
+    </article>
+  </section>
+</main>
+
+<script>
+/* Pure state machine — no DOM or browser APIs. This is the portable part of the prototype. */
+const EndpointMachine = (() => {
+  const roots = {
+    lan: '\\\\HARBOR-PC\\Balls',
+    tailscale: '\\\\harbor-pc.tail7c2.ts.net\\Balls'
+  };
+  const providerTargetForRoot = root => {
+    const match = /^\\\\([^\\]+)\\[^\\]+$/.exec(root);
+    return match ? `\\\\${match[1]}` : null;
+  };
+  const credentialTargets = {
+    lan: providerTargetForRoot(roots.lan),
+    tailscale: providerTargetForRoot(roots.tailscale)
+  };
+  const labels = { lan: 'Trusted local network', tailscale: 'Private Tailscale' };
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const initial = (overrides = {}) => ({
+    hostId: 'host_7F3A', hostLabel: 'Harbor files', grantId: 'grant_C19', credentialRevision: 4, share: 'Balls',
+    endpoints: {
+      lan: { path:'lan', label:labels.lan, root:roots.lan, observedName:'HARBOR-PC', observedAt:'2026-08-14T15:00:00Z', readiness:'Ready', stale:false },
+      tailscale: { path:'tailscale', label:labels.tailscale, root:roots.tailscale, observedName:'harbor-pc.tail7c2.ts.net', observedAt:'2026-08-14T15:01:00Z', readiness:'Ready', stale:false }
+    },
+    selectedPath: null, selectedRoot: null, verifiedPath: null, authenticationAttempts: 0,
+    mapping: null, savedCredentialTarget: null, credentialCollision: null,
+    pendingEndpointUpdate: null, switchPreview: null, ipDiagnostic: 'Not run', outcome: 'Action required', message: 'Choose one published endpoint. No connection has been attempted.',
+    ...overrides
+  });
+  const settle = (state, outcome, message) => ({...state, outcome, message});
+  const selected = state => state.selectedPath ? state.endpoints[state.selectedPath] : null;
+  const otherPath = path => path === 'lan' ? 'tailscale' : 'lan';
+  const canUse = endpoint => endpoint && endpoint.readiness === 'Ready' && !endpoint.stale;
+  function reducer(before, action) {
+    let state = clone(before);
+    if (action.type === 'RESET') return initial();
+    if (action.type === 'IMPORT_ENDPOINT_UPDATE') return importEndpointUpdate(state, action.bundle);
+    if (action.type === 'PROVE_PROVIDER_TARGET') return proveProviderTarget(state, action.target);
+    if (action.type === 'SELECT_IP_AS_ENDPOINT') return settle(state, 'Refused', 'IP UNC roots are transport diagnostics only; they cannot become a selected SMB endpoint.');
+    if (action.type === 'AUTO_FALLBACK') return settle(state, 'Refused', 'Automatic LAN/Tailscale fallback is not allowed. Choose and verify the alternate path explicitly.');
+    if (action.type === 'OPEN_IP_DIAGNOSTIC') { state.ipDiagnostic = 'TCP reachability observed only — no SMB credential, mapping, or verified-access claim.'; return settle(state, 'Action required', 'Transport observation recorded. It is not an authentication workaround.'); }
+    if (action.type === 'SET_CREDENTIAL_COLLISION') { state.credentialCollision = 'A different Windows credential is already connected to ' + (state.selectedRoot || roots.lan); return settle(state, 'Action required', 'Credential collision found before authentication. Disconnect or resolve the named conflict outside this flow.'); }
+    if (action.type === 'CLEAR_CREDENTIAL_COLLISION') { state.credentialCollision = null; return settle(state, 'Action required', 'Credential collision cleared in this simulation.'); }
+    if (action.type === 'MARK_PATH_DOWN') { const e = state.endpoints[action.path]; if (!e) return settle(state, 'Refused', 'Only a published LAN or Tailscale endpoint can be observed.'); e.readiness = 'Unavailable'; return settle(state, 'Action required', `${labels[action.path]} is separately observed as unavailable; no alternate retry occurred.`); }
+    if (action.type === 'REOBSERVE') {
+      Object.values(state.endpoints).forEach(e => { if (e.stale) { e.stale = false; e.readiness = 'Ready'; } });
+      return settle(state, 'Action required', 'Names re-observed. Select and verify a current published root before changing persistent state.');
+    }
+    if (action.type === 'DRIFT') {
+      const e = state.endpoints[action.path];
+      if (!e) return settle(state, 'Refused', 'Only a published LAN or Tailscale endpoint can drift.');
+      e.observedName = action.name; e.root = action.root; e.stale = true; e.readiness = 'Stale';
+      return settle(state, 'Action required', `${labels[action.path]} name changed. Existing mapping and saved credential stay untouched until explicit re-verification.`);
+    }
+    if (action.type === 'SELECT_PATH') {
+      const target = state.endpoints[action.path];
+      if (!target) return settle(state, 'Refused', 'Only a published LAN or Tailscale endpoint can be selected.');
+      if (target.stale) return settle(state, 'Action required', 'That endpoint is stale. Re-observe it before selection.');
+      if (state.mapping && state.mapping.path !== action.path) return settle(state, 'Refused', 'An existing mapping can change path only through an imported owner-transferred endpoint update.');
+      state.selectedPath = action.path; state.selectedRoot = target.root; state.switchPreview = null;
+      return settle(state, canUse(target) ? 'Action required' : 'Action required', canUse(target) ? `${target.label} selected. Verify this exact root once before mapping or saving a credential.` : `${target.label} is not ready. The separately observed alternate remains a choice, not a fallback.`);
+    }
+    if (action.type === 'VERIFY_SELECTED') {
+      const e = selected(state);
+      if (!e) return settle(state, 'Refused', 'Choose a published LAN or Tailscale endpoint first.');
+      if (!canUse(e)) return settle(state, 'Action required', `${e.label} cannot be verified in its current state. No automatic alternate attempt was made.`);
+      if (state.credentialCollision) return settle(state, 'Action required', 'Verification stopped before an SMB attempt because a named credential collision must be resolved first.');
+      state.authenticationAttempts += 1; state.verifiedPath = state.selectedPath;
+      return settle(state, 'Ready', `One simulated SMB verification succeeded on ${e.root}. No other path was tried.`);
+    }
+    if (action.type === 'ADD_MAPPING') {
+      if (!state.verifiedPath || state.verifiedPath !== state.selectedPath) return settle(state, 'Refused', 'Verify the exact selected root before recording a persistent mapping.');
+      if (state.mapping && (state.mapping.path !== state.selectedPath || state.mapping.root !== state.selectedRoot)) return settle(state, 'Refused', 'An existing mapping can be replaced only through a matching imported owner endpoint update.');
+      const e = selected(state);
+      state.mapping = { root:state.selectedRoot, path:state.selectedPath, drive:'B:', persistent:true };
+      state.savedCredentialTarget = providerTargetForRoot(e.root);
+      return settle(state, 'Ready', `Persistent mapping ${state.mapping.drive} records ${state.selectedRoot}; its separately proven provider target is recorded independently.`);
+    }
+    if (action.type === 'PREVIEW_SWITCH') {
+      return previewImportedSwitch(state);
+    }
+    if (action.type === 'CONFIRM_SWITCH') {
+      return confirmImportedSwitch(state);
+    }
+    return settle(state, 'Refused', 'That transition is not part of this endpoint model.');
+  }
+  function importEndpointUpdate(before, bundle) {
+    const state = clone(before);
+    state.pendingEndpointUpdate = null;
+    state.switchPreview = null;
+    const preserve = message => settle(state, 'Refused', message);
+    if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) return preserve('Endpoint update must be one explicit bundle.');
+    const keys = Object.keys(bundle).sort();
+    const expected = ['credentialRevision', 'endpoint', 'generatedAt', 'grantId', 'productHostId', 'schemaVersion', 'shareName'];
+    if (JSON.stringify(keys) !== JSON.stringify(expected)) return preserve('Endpoint update contains a missing, unknown, secret, discovery, or alternate field.');
+    if (bundle.schemaVersion !== 1 || bundle.productHostId !== state.hostId || bundle.grantId !== state.grantId || bundle.credentialRevision !== state.credentialRevision || bundle.shareName !== state.share) return preserve('Endpoint update does not match the existing host, grant, share, and credential revision.');
+    if (!bundle.endpoint || typeof bundle.endpoint !== 'object' || Array.isArray(bundle.endpoint)) return preserve('Endpoint update must contain exactly one endpoint.');
+    const endpointKeys = Object.keys(bundle.endpoint).sort();
+    if (JSON.stringify(endpointKeys) !== JSON.stringify(['kind', 'root'])) return preserve('Endpoint update must contain one endpoint and no alternate or credential target.');
+    const endpoint = state.endpoints[bundle.endpoint.kind];
+    if (!endpoint || bundle.endpoint.root !== endpoint.root || /^\\\\(?:\d{1,3}\.){3}\d{1,3}\\/.test(bundle.endpoint.root)) return preserve('Endpoint update must match one currently observed named endpoint; IP and guessed roots are refused.');
+    if (state.mapping && state.mapping.root === bundle.endpoint.root) return preserve('Endpoint update must select one new endpoint rather than the existing mapped root.');
+    const generatedAtEpoch = typeof bundle.generatedAt === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(bundle.generatedAt) ? Date.parse(bundle.generatedAt) : NaN;
+    const canonicalGeneratedAt = Number.isFinite(generatedAtEpoch) ? new Date(generatedAtEpoch).toISOString().replace('.000Z', 'Z') : null;
+    if (canonicalGeneratedAt !== bundle.generatedAt) return preserve('Endpoint update generation time must be a real canonical UTC timestamp.');
+    state.pendingEndpointUpdate = { ...clone(bundle), provenCredentialTarget:null };
+    return settle(state, 'Action required', 'Endpoint update imported into transient pending state. Preview and exact-root verification are still required.');
+  }
+  function proveProviderTarget(before, target) {
+    const state = clone(before);
+    if (!state.pendingEndpointUpdate) return settle(state, 'Refused', 'Import a matching endpoint update before proving its provider target.');
+    const endpoint = state.endpoints[state.pendingEndpointUpdate.endpoint.kind];
+    const canonicalTarget = endpoint && endpoint.root === state.pendingEndpointUpdate.endpoint.root ? providerTargetForRoot(endpoint.root) : null;
+    if (typeof target !== 'string' || !canonicalTarget || target !== canonicalTarget) return settle(state, 'Refused', 'The provider-supported server target must be canonical, endpoint-specific, and proven separately from the mapping UNC.');
+    state.pendingEndpointUpdate.provenCredentialTarget = target;
+    return settle(state, 'Action required', 'Provider target recorded separately; explicit switch preview is now available.');
+  }
+  function previewImportedSwitch(before) {
+    const state = clone(before);
+    const update = state.pendingEndpointUpdate;
+    if (!update || !update.provenCredentialTarget || !state.mapping) return settle(state, 'Refused', 'A matching imported update, separately proven provider target, and existing mapping are required before preview.');
+    if (update.productHostId !== state.hostId || update.grantId !== state.grantId || update.credentialRevision !== state.credentialRevision || update.shareName !== state.share) return settle(state, 'Refused', 'Client identity or credential revision changed after import; import a fresh matching update.');
+    const endpoint = state.endpoints[update.endpoint.kind];
+    if (!canUse(endpoint) || endpoint.root !== update.endpoint.root) return settle(state, 'Action required', 'The imported endpoint is stale, changed, or unavailable; state is preserved pending re-observation.');
+    state.switchPreview = { from:state.mapping.root, to:update.endpoint.root, fromCredentialTarget:state.savedCredentialTarget, toCredentialTarget:update.provenCredentialTarget, replacesPersistentMapping:true, changesCredentialTarget:state.savedCredentialTarget !== update.provenCredentialTarget, updateRevision:update.credentialRevision };
+    return settle(state, 'Action required', 'Preview shows the exact UNC, mapping replacement, separate provider-target replacement, and one verification attempt.');
+  }
+  function confirmImportedSwitch(before) {
+    const state = clone(before);
+    if (!state.switchPreview || !state.pendingEndpointUpdate) return settle(state, 'Refused', 'Import, provider-target proof, and explicit preview must precede Switch.');
+    const update = state.pendingEndpointUpdate;
+    const endpoint = state.endpoints[update.endpoint.kind];
+    if (update.productHostId !== state.hostId || update.grantId !== state.grantId || update.credentialRevision !== state.credentialRevision || update.shareName !== state.share) return settle(state, 'Refused', 'Client identity or credential revision changed after preview; no switch occurred.');
+    if (!canUse(endpoint) || endpoint.root !== update.endpoint.root) return settle(state, 'Action required', 'Destination changed or became unavailable after preview; no switch occurred.');
+    if (state.credentialCollision) return settle(state, 'Action required', 'Replacement stopped before SMB authentication because of the named credential collision.');
+    if (state.switchPreview.to !== update.endpoint.root || state.switchPreview.toCredentialTarget !== update.provenCredentialTarget) return settle(state, 'Refused', 'Switch preview no longer matches the imported endpoint and provider target.');
+    state.authenticationAttempts += 1;
+    state.selectedPath = update.endpoint.kind;
+    state.selectedRoot = update.endpoint.root;
+    state.verifiedPath = state.selectedPath;
+    state.mapping = { root:state.selectedRoot, path:state.selectedPath, drive:state.mapping.drive, persistent:state.mapping.persistent };
+    state.savedCredentialTarget = update.provenCredentialTarget;
+    state.pendingEndpointUpdate = null;
+    state.switchPreview = null;
+    return settle(state, 'Ready', 'Explicit endpoint update switched and verified the exact selected root once.');
+  }
+  return { initial, reducer, labels, credentialTargets, importEndpointUpdate, proveProviderTarget, previewImportedSwitch, confirmImportedSwitch };
+})();
+
+const scenarios = [
+  { title:'LAN success', description:'A client chooses the current Windows computer name on a trusted local network, verifies that one exact root, then records it.', setup:()=>EndpointMachine.initial(), steps:[['Choose trusted local network',{type:'SELECT_PATH',path:'lan'}],['Verify this exact LAN root once',{type:'VERIFY_SELECTED'}],['Record the persistent mapping',{type:'ADD_MAPPING'}]] },
+  { title:'Tailscale success', description:'The full MagicDNS FQDN is selected as its own connection identity. It is not a shorter LAN-style name.', setup:()=>EndpointMachine.initial(), steps:[['Choose private Tailscale',{type:'SELECT_PATH',path:'tailscale'}],['Verify the full MagicDNS root once',{type:'VERIFY_SELECTED'}],['Record the persistent mapping',{type:'ADD_MAPPING'}]] },
+  { title:'Selected path down', description:'LAN becomes unavailable while Tailscale is ready. Watch the model preserve state until an owner-transferred update is explicitly imported.', setup:()=>EndpointMachine.initial({selectedPath:'lan',selectedRoot:'\\\\HARBOR-PC\\Balls',mapping:{root:'\\\\HARBOR-PC\\Balls',path:'lan',drive:'B:',persistent:true},savedCredentialTarget:EndpointMachine.credentialTargets.lan}), steps:[['Observe LAN unavailable',{type:'MARK_PATH_DOWN',path:'lan'}],['Try to verify LAN (no fallback)',{type:'VERIFY_SELECTED'}],['Import owner-transferred endpoint update',{type:'IMPORT_ENDPOINT_UPDATE',bundle:{schemaVersion:1,productHostId:'host_7F3A',grantId:'grant_C19',credentialRevision:4,shareName:'Balls',endpoint:{kind:'tailscale',root:'\\\\harbor-pc.tail7c2.ts.net\\Balls'},generatedAt:'2026-08-14T16:00:00Z'}}],['Record separately proven provider target',{type:'PROVE_PROVIDER_TARGET',target:'\\\\harbor-pc.tail7c2.ts.net'}],['Preview exactly what replacement changes',{type:'PREVIEW_SWITCH'}],['Confirm switch and verify once',{type:'CONFIRM_SWITCH'}]] },
+  { title:'Name drift', description:'A Windows or Tailscale name changes. Existing client state is preserved; a fresh observation and explicit verification are required.', setup:()=>EndpointMachine.initial({selectedPath:'tailscale',selectedRoot:'\\\\harbor-pc.tail7c2.ts.net\\Balls',mapping:{root:'\\\\harbor-pc.tail7c2.ts.net\\Balls',path:'tailscale',drive:'B:',persistent:true},savedCredentialTarget:EndpointMachine.credentialTargets.tailscale}), steps:[['Observe Tailscale collision suffix',{type:'DRIFT',path:'tailscale',name:'harbor-pc-1.tail7c2.ts.net',root:'\\\\harbor-pc-1.tail7c2.ts.net\\Balls'}],['Re-observe published names',{type:'REOBSERVE'}],['Select observed Tailscale root',{type:'SELECT_PATH',path:'tailscale'}],['Verify it once',{type:'VERIFY_SELECTED'}]] },
+  { title:'Mapping replacement', description:'A persistent LAN mapping exists. Switching requires a matching update and preview naming the new root plus the one owned mapping/provider target it will replace.', setup:()=>EndpointMachine.initial({selectedPath:'lan',selectedRoot:'\\\\HARBOR-PC\\Balls',verifiedPath:'lan',mapping:{root:'\\\\HARBOR-PC\\Balls',path:'lan',drive:'B:',persistent:true},savedCredentialTarget:EndpointMachine.credentialTargets.lan,outcome:'Ready'}), steps:[['Import owner-transferred endpoint update',{type:'IMPORT_ENDPOINT_UPDATE',bundle:{schemaVersion:1,productHostId:'host_7F3A',grantId:'grant_C19',credentialRevision:4,shareName:'Balls',endpoint:{kind:'tailscale',root:'\\\\harbor-pc.tail7c2.ts.net\\Balls'},generatedAt:'2026-08-14T16:00:00Z'}}],['Record separately proven provider target',{type:'PROVE_PROVIDER_TARGET',target:'\\\\harbor-pc.tail7c2.ts.net'}],['Preview replacement',{type:'PREVIEW_SWITCH'}],['Confirm replacement and verify',{type:'CONFIRM_SWITCH'}]] },
+  { title:'Credential collision', description:'A different Windows credential is already connected to the selected server. The model stops before an SMB authentication attempt.', setup:()=>EndpointMachine.initial(), steps:[['Choose trusted local network',{type:'SELECT_PATH',path:'lan'}],['Introduce a named credential collision',{type:'SET_CREDENTIAL_COLLISION'}],['Try to verify (must stop before SMB)',{type:'VERIFY_SELECTED'}],['Clear collision in this simulation',{type:'CLEAR_CREDENTIAL_COLLISION'}],['Verify once after resolution',{type:'VERIFY_SELECTED'}]] },
+  { title:'Illegal IP fallback', description:'An IP literal can be a deliberate transport observation only. It can never become a saved credential or mapping endpoint, and it cannot trigger fallback.', setup:()=>EndpointMachine.initial({selectedPath:'lan',selectedRoot:'\\\\HARBOR-PC\\Balls'}), steps:[['Run transport-only IP observation',{type:'OPEN_IP_DIAGNOSTIC'}],['Attempt IP as SMB endpoint (refused)',{type:'SELECT_IP_AS_ENDPOINT'}],['Attempt automatic alternate retry (refused)',{type:'AUTO_FALLBACK'}]] }
+];
+
+let state = EndpointMachine.initial(), activeScenario = 0, completedSteps = 0;
+function badgeClass(outcome) { return outcome === 'Ready' ? 'ready' : outcome === 'Refused' ? 'refused' : outcome === 'Unknown' ? 'unknown' : 'action'; }
+function value(text) { return text || '—'; }
+function render() {
+  document.getElementById('outcomeBadge').className = 'badge ' + badgeClass(state.outcome);
+  document.getElementById('outcomeBadge').textContent = state.outcome;
+  const endpoint = e => `<div class="endpoint"><h3>${e.label} <span class="badge ${e.readiness === 'Ready' && !e.stale ? 'ready' : 'action'}">${e.stale ? 'Stale' : e.readiness}</span></h3><div class="root">${e.root}</div><div class="dim">Observed name: ${e.observedName}</div></div>`;
+  const mapping = state.mapping ? `${state.mapping.drive} → ${state.mapping.root} (${state.mapping.persistent ? 'persistent' : 'temporary'})` : 'None';
+  const preview = state.switchPreview ? `<div class="changed"><strong>Switch preview</strong><br><span class="root">${state.switchPreview.from}</span><br>→ <span class="root">${state.switchPreview.to}</span><br><span class="dim">Replace recorded mapping: ${state.switchPreview.replacesPersistentMapping ? 'yes' : 'no'} · change credential target: ${state.switchPreview.changesCredentialTarget ? 'yes' : 'no'}</span></div>` : '';
+  document.getElementById('state').innerHTML = `${endpoint(state.endpoints.lan)}${endpoint(state.endpoints.tailscale)}<dl><dt>Selected connection identity</dt><dd>${state.selectedPath ? EndpointMachine.labels[state.selectedPath] + ' · ' + state.selectedRoot : 'None'}</dd><dt>Last verified path</dt><dd>${value(state.verifiedPath && EndpointMachine.labels[state.verifiedPath])}</dd><dt>Persistent mapping</dt><dd>${mapping}</dd><dt>Saved credential target</dt><dd>${value(state.savedCredentialTarget)}</dd><dt>Credential collision</dt><dd>${value(state.credentialCollision)}</dd><dt>Authentication attempts</dt><dd>${state.authenticationAttempts} (simulated)</dd><dt>IP diagnostic</dt><dd>${state.ipDiagnostic}</dd></dl>${preview}<div class="changed"><strong>What just happened</strong><br>${state.message}</div>`;
+  document.getElementById('log').textContent = `${state.outcome}: ${state.message}`;
+  document.getElementById('scenarioCount').textContent = `(${scenarios.length} scenarios)`;
+  document.getElementById('tabs').innerHTML = scenarios.map((s,i)=>`<button class="${i===activeScenario?'active':''}" onclick="selectScenario(${i})">${i+1}. ${s.title}</button>`).join('');
+  const sc = scenarios[activeScenario];
+  document.getElementById('scenario').innerHTML = `<p>${sc.description}</p><div class="actions"><button class="primary" onclick="startScenario()">Start this walkthrough</button></div><ol class="steps">${sc.steps.map(([label,action],i)=>`<li class="${i<completedSteps?'step-done':''}">${i<completedSteps?'Done — ':''}${label} <button ${i!==completedSteps?'disabled':''} onclick='runStep(${i})'>${i===completedSteps?'Run step':'Step complete'}</button></li>`).join('')}</ol>`;
+}
+function dispatch(action) { state = EndpointMachine.reducer(state, action); render(); }
+function selectScenario(i) { activeScenario = i; completedSteps = 0; render(); }
+function startScenario() { state = scenarios[activeScenario].setup(); completedSteps = 0; state = {...state, message:'Walkthrough reset to its known starting state.'}; render(); }
+function runStep(i) { if (i !== completedSteps) return; state = EndpointMachine.reducer(state, scenarios[activeScenario].steps[i][1]); completedSteps += 1; render(); }
+render();
+</script>
+</body>
+</html>

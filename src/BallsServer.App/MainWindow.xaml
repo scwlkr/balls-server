@@ -1,0 +1,364 @@
+<Window x:Class="BallsServer.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Balls Server — Host Dashboard"
+        Width="960"
+        Height="760"
+        MinWidth="720"
+        MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        KeyboardNavigation.TabNavigation="Cycle"
+        Loaded="Window_Loaded">
+  <Window.Resources>
+    <DataTemplate x:Key="StatusBadgeTemplate">
+      <Border Padding="9,3"
+              Background="{Binding StatusBackground}"
+              CornerRadius="10">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Margin="0,0,5,0"
+                     FontWeight="Bold"
+                     Foreground="{Binding StatusForeground}"
+                     Text="{Binding StatusCue}" />
+          <TextBlock FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{Binding StatusForeground}"
+                     Text="{Binding StatusText}" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </Window.Resources>
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <Grid Margin="32,26,32,36">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <StackPanel Grid.Row="0">
+        <TextBlock FontSize="30"
+                   FontWeight="SemiBold"
+                   Text="Host Dashboard" />
+        <TextBlock Margin="0,6,0,0"
+                   Foreground="{StaticResource MutedTextBrush}"
+                   Text="Check whether this PC appears ready to host a folder for trusted Windows devices."
+                   TextWrapping="Wrap" />
+      </StackPanel>
+
+      <Border Grid.Row="1"
+              Margin="0,22,0,0"
+              Padding="16"
+              Background="#FFFFF8E2"
+              BorderBrush="#FFE3B84C"
+              BorderThickness="1"
+              CornerRadius="6"
+              AutomationProperties.Name="Strictly read-only diagnostic notice">
+        <StackPanel>
+          <TextBlock FontSize="15"
+                     FontWeight="Bold"
+                     Text="Strictly read-only — this diagnostic makes no changes" />
+          <TextBlock Margin="0,5,0,0"
+                     Text="It only inspects Windows state. It does not enable features, alter services or firewall rules, create shares, change permissions, install Tailscale, or request elevation."
+                     TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Row="2"
+              Margin="0,18,0,0"
+              Padding="18"
+              Background="{StaticResource SurfaceBrush}"
+              BorderBrush="{StaticResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="6">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <TextBlock Grid.Row="0"
+                     FontSize="17"
+                     FontWeight="SemiBold"
+                     Text="Managed folder candidate" />
+          <TextBlock Grid.Row="1"
+                     Margin="0,4,0,10"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     Text="Choose an existing local folder you may want to make available later. Nothing will be shared today."
+                     TextWrapping="Wrap" />
+          <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="TargetPathTextBox"
+                     Grid.Column="0"
+                     Margin="0,0,10,0"
+                     AutomationProperties.HelpText="Full path to an existing folder to inspect"
+                     AutomationProperties.Name="Folder path"
+                     IsEnabled="{Binding CanEditTarget}"
+                     KeyboardNavigation.TabIndex="0"
+                     Text="{Binding TargetPath, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Grid.Column="1"
+                    AutomationProperties.HelpText="Open a dialog to choose an existing folder"
+                    AutomationProperties.Name="Choose managed folder"
+                    Click="BrowseButton_Click"
+                    Content="Browse…"
+                    IsEnabled="{Binding CanEditTarget}"
+                    KeyboardNavigation.TabIndex="1" />
+          </Grid>
+          <TextBlock Grid.Row="3"
+                     Margin="0,8,0,0"
+                     AutomationProperties.LiveSetting="Polite"
+                     AutomationProperties.Name="Host Files preflight state"
+                     Foreground="#FF8A1C16"
+                     Text="{Binding FolderValidationMessage}"
+                     TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+
+      <Grid Grid.Row="3" Margin="0,18,0,18">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+          <TextBlock FontSize="13"
+                     FontWeight="SemiBold"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     Text="HOST FILES PREFLIGHT" />
+          <TextBlock Margin="0,2,0,0"
+                     AutomationProperties.LiveSetting="Polite"
+                     FontSize="21"
+                     FontWeight="SemiBold"
+                     Text="{Binding RunStatusText}" />
+          <TextBlock Margin="0,3,20,0"
+                     AutomationProperties.LiveSetting="Polite"
+                     AutomationProperties.Name="Host Files preflight progress and observation context"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     Text="{Binding RunDetailText}"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Margin="0,0,10,0"
+                  AutomationProperties.HelpText="Stop the running diagnostic without changing this PC"
+                  AutomationProperties.Name="Cancel Host Files preflight"
+                  Click="CancelButton_Click"
+                  Content="Cancel"
+                  IsEnabled="{Binding CanCancel}"
+                  KeyboardNavigation.TabIndex="2" />
+          <Button AutomationProperties.HelpText="Run all eight read-only Host Files checks"
+                  AutomationProperties.Name="Refresh Host Files preflight"
+                  Background="{StaticResource AccentBrush}"
+                  BorderBrush="{StaticResource AccentBrush}"
+                  Click="RefreshButton_Click"
+                  Content="Refresh"
+                  Foreground="White"
+                  IsDefault="True"
+                  IsEnabled="{Binding CanRefresh}"
+                  KeyboardNavigation.TabIndex="3" />
+        </StackPanel>
+      </Grid>
+
+      <ItemsControl Grid.Row="4"
+                    AutomationProperties.Name="Host Files readiness summaries"
+                    ItemsSource="{Binding SummaryAreas}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+            </Grid>
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemContainerStyle>
+          <Style TargetType="ContentPresenter">
+            <Setter Property="Grid.Row" Value="{Binding GridRow}" />
+            <Setter Property="Grid.Column" Value="{Binding GridColumn}" />
+            <Setter Property="Grid.ColumnSpan" Value="{Binding GridColumnSpan}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+          </Style>
+        </ItemsControl.ItemContainerStyle>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Margin="5"
+                    Padding="16"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    AutomationProperties.Name="{Binding AccessibleStatus}">
+              <Expander AutomationProperties.HelpText="Expands presentation details without running Host Files preflight"
+                        AutomationProperties.Name="{Binding DetailsToggleAccessibleName}"
+                        FocusVisualStyle="{StaticResource KeyboardFocusVisual}"
+                        HorizontalContentAlignment="Stretch"
+                        IsExpanded="{Binding IsDetailsExpanded, Mode=TwoWay}"
+                        KeyboardNavigation.TabIndex="{Binding TabIndex}">
+                <Expander.Header>
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0"
+                                 FontSize="16"
+                                 FontWeight="SemiBold"
+                                 Text="{Binding Title}" />
+                      <ContentControl Grid.Column="1"
+                                      Content="{Binding}"
+                                      ContentTemplate="{StaticResource StatusBadgeTemplate}" />
+                    </Grid>
+                    <TextBlock Grid.Row="1"
+                               Margin="0,7,0,0"
+                               Foreground="{StaticResource MutedTextBrush}"
+                               Text="{Binding Summary}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="2"
+                               Margin="0,7,0,0"
+                               FontSize="11"
+                               Foreground="{StaticResource MutedTextBrush}"
+                               Text="{Binding EvaluatedFolderContext}"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding EvaluatedFolderContextVisibility}" />
+                  </Grid>
+                </Expander.Header>
+                <StackPanel Margin="0,14,0,0">
+                  <TextBlock Foreground="{StaticResource MutedTextBrush}"
+                             Text="{Binding DetailsSummary}"
+                             TextWrapping="Wrap" />
+                  <TextBlock Margin="0,5,0,10"
+                             FontSize="11"
+                             Foreground="{StaticResource MutedTextBrush}"
+                             Text="{Binding ObservationContext}"
+                             TextWrapping="Wrap" />
+                  <ItemsControl ItemsSource="{Binding PrerequisiteResults}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Margin="0,0,0,9"
+                                Padding="12"
+                                Background="{StaticResource WindowBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                AutomationProperties.Name="{Binding AccessibleStatus}">
+                          <Grid>
+                            <Grid.RowDefinitions>
+                              <RowDefinition Height="Auto" />
+                              <RowDefinition Height="Auto" />
+                              <RowDefinition Height="Auto" />
+                              <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Grid.Column="0"
+                                         FontWeight="SemiBold"
+                                         Text="{Binding Title}"
+                                         TextWrapping="Wrap" />
+                              <ContentControl Grid.Column="1"
+                                              Content="{Binding}"
+                                              ContentTemplate="{StaticResource StatusBadgeTemplate}" />
+                            </Grid>
+                            <TextBlock Grid.Row="1"
+                                       Margin="0,7,0,0"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       Text="{Binding Summary}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2"
+                                       Margin="0,7,0,0"
+                                       FontFamily="Consolas"
+                                       FontSize="12"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       Text="{Binding ReasonCode, StringFormat=Reason code: {0}}"
+                                       Visibility="{Binding ReasonVisibility}" />
+                            <ItemsControl Grid.Row="3"
+                                          Margin="0,9,0,0"
+                                          ItemsSource="{Binding Evidence}"
+                                          Visibility="{Binding EvidenceVisibility}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                  <Grid Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                      <ColumnDefinition Width="120" />
+                                      <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Margin="0,0,10,0"
+                                               FontWeight="SemiBold"
+                                               Text="{Binding Label}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Value}"
+                                               TextWrapping="Wrap" />
+                                  </Grid>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Expander>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <Border Grid.Row="5"
+              Margin="5,13,5,18"
+              Padding="16"
+              Background="{StaticResource SurfaceBrush}"
+              BorderBrush="{StaticResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              AutomationProperties.Name="Future Host Files setup information">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Text="Future setup authorization" />
+            <ContentControl Grid.Column="1"
+                            Content="{Binding AdministratorInformation}"
+                            ContentTemplate="{StaticResource StatusBadgeTemplate}" />
+          </Grid>
+          <TextBlock Grid.Row="1"
+                     Margin="0,7,0,0"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     Text="{Binding AdministratorInformation.Summary}"
+                     TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+
+    </Grid>
+  </ScrollViewer>
+</Window>

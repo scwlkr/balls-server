@@ -1,0 +1,33 @@
+## .NET build output
+**/bin/
+**/obj/
+artifacts/
+
+## Visual Studio and JetBrains user state
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Test output
+TestResults/
+*.trx
+coverage/
+coverage.*
+
+## Packaging and local diagnostics
+.worktrees/
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+*.nupkg
+*.snupkg
+logs/
+
+## Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini

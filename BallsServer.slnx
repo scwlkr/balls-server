@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BallsServer.App/BallsServer.App.csproj" />
+    <Project Path="src/BallsServer.Core/BallsServer.Core.csproj" />
+    <Project Path="src/BallsServer.Presentation/BallsServer.Presentation.csproj" />
+    <Project Path="src/BallsServer.Windows/BallsServer.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BallsServer.Core.Tests/BallsServer.Core.Tests.csproj" />
+    <Project Path="tests/BallsServer.Presentation.Tests/BallsServer.Presentation.Tests.csproj" />
+    <Project Path="tests/BallsServer.Windows.Tests/BallsServer.Windows.Tests.csproj" />
+  </Folder>
+</Solution>

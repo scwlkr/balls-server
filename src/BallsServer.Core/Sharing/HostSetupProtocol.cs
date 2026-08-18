@@ -4,6 +4,12 @@ using System.Text.RegularExpressions;
 
 namespace BallsServer.Core.Sharing;
 
+public enum HostSetupOperation
+{
+    Apply,
+    StopSharing,
+}
+
 public sealed record HostSetupRequest(
     int Version,
     string OperationId,
@@ -11,13 +17,14 @@ public sealed record HostSetupRequest(
     string InitiatingUserSid,
     DateTimeOffset IssuedAt,
     DateTimeOffset ExpiresAt,
-    string ManagedFolder,
-    AccessPathKind AccessPath)
+    HostSetupOperation Operation,
+    string? ManagedFolder,
+    AccessPathKind? AccessPath)
 {
     public override string ToString() =>
         $"HostSetupRequest {{ Version = {Version}, OperationId = {OperationId}, Nonce = [REDACTED], " +
         $"InitiatingUserSid = [REDACTED], IssuedAt = {IssuedAt:O}, ExpiresAt = {ExpiresAt:O}, " +
-        $"ManagedFolder = [REDACTED], AccessPath = {AccessPath} }}";
+        $"Operation = {Operation}, ManagedFolder = [REDACTED], AccessPath = {AccessPath} }}";
 }
 
 public sealed record HostSetupResponse(
@@ -39,7 +46,7 @@ public static partial class HostSetupProtocol
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public static string EncodeRequest(HostSetupRequest request)
     {
@@ -111,9 +118,14 @@ public static partial class HostSetupProtocol
     {
         ValidateBinding(request.Version, request.OperationId, request.Nonce);
         if (!SidPattern().IsMatch(request.InitiatingUserSid) ||
-            !Enum.IsDefined(request.AccessPath) ||
-            string.IsNullOrWhiteSpace(request.ManagedFolder) ||
-            !Path.IsPathFullyQualified(request.ManagedFolder))
+            !Enum.IsDefined(request.Operation) ||
+            request.Operation == HostSetupOperation.Apply &&
+            (request.AccessPath is null ||
+             !Enum.IsDefined(request.AccessPath.Value) ||
+             string.IsNullOrWhiteSpace(request.ManagedFolder) ||
+             !Path.IsPathFullyQualified(request.ManagedFolder)) ||
+            request.Operation == HostSetupOperation.StopSharing &&
+            (request.ManagedFolder is not null || request.AccessPath is not null))
         {
             throw new FormatException("The host setup request is invalid.");
         }
@@ -171,9 +183,11 @@ public static partial class HostSetupProtocol
 
         public required DateTimeOffset ExpiresAt { get; init; }
 
-        public required string ManagedFolder { get; init; }
+        public required HostSetupOperation Operation { get; init; }
 
-        public required AccessPathKind AccessPath { get; init; }
+        public string? ManagedFolder { get; init; }
+
+        public AccessPathKind? AccessPath { get; init; }
 
         public static RequestEnvelope FromRequest(HostSetupRequest request) => new()
         {
@@ -183,6 +197,7 @@ public static partial class HostSetupProtocol
             InitiatingUserSid = request.InitiatingUserSid,
             IssuedAt = request.IssuedAt,
             ExpiresAt = request.ExpiresAt,
+            Operation = request.Operation,
             ManagedFolder = request.ManagedFolder,
             AccessPath = request.AccessPath,
         };
@@ -194,6 +209,7 @@ public static partial class HostSetupProtocol
             InitiatingUserSid,
             IssuedAt,
             ExpiresAt,
+            Operation,
             ManagedFolder,
             AccessPath);
     }
@@ -229,6 +245,7 @@ public static partial class HostSetupProtocol
                 HostSetupResultStatus.Refused when SetupCode is null => HostSetupResult.Refused(
                     "Host setup was refused because this computer is not in the required safe state."),
                 HostSetupResultStatus.Failed when SetupCode is null => HostSetupResult.Failed(),
+                HostSetupResultStatus.Stopped when SetupCode is null => HostSetupResult.Stopped(),
                 _ => throw new FormatException("The helper result is invalid."),
             };
 

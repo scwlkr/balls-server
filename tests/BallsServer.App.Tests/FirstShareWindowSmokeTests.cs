@@ -106,6 +106,7 @@ public sealed class FirstShareWindowSmokeTests
                 "S-1-5-21-100-200-300-1001",
                 now,
                 now.AddMinutes(2),
+                HostSetupOperation.Apply,
                 @"C:\Shared",
                 AccessPathKind.Local);
             var approvalWindow = new BallsServer.Helper.HostSetupApprovalWindow(helperRequest);
@@ -223,6 +224,9 @@ public sealed class FirstShareWindowSmokeTests
             HostSetupPreview request,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(HostSetupResult.Completed("BALLS1.synthetic-code"));
+
+        public Task<HostSetupResult> StopSharingAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(HostSetupResult.Stopped());
     }
 
     private sealed class CompletingClientConnectionService : IClientConnectionService

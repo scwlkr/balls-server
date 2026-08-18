@@ -12,8 +12,19 @@ public sealed record HostSetupMutationRequest(
     string UserName,
     string Password)
 {
+    public HostSetupOperation Operation { get; init; } = HostSetupOperation.Apply;
+
+    public static HostSetupMutationRequest StopSharing() => new(
+        string.Empty,
+        AccessPathKind.Local,
+        string.Empty,
+        string.Empty)
+    {
+        Operation = HostSetupOperation.StopSharing,
+    };
+
     public override string ToString() =>
-        $"HostSetupMutationRequest {{ ManagedFolder = [REDACTED], AccessPath = {AccessPath}, " +
+        $"HostSetupMutationRequest {{ Operation = {Operation}, ManagedFolder = [REDACTED], AccessPath = {AccessPath}, " +
         $"UserName = {UserName}, Password = [REDACTED] }}";
 }
 
@@ -26,13 +37,17 @@ public sealed partial record HostSetupPowerShellCommand(
     public static HostSetupPowerShellCommand Create(HostSetupMutationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (string.IsNullOrWhiteSpace(request.ManagedFolder) ||
-            !Path.IsPathFullyQualified(request.ManagedFolder) ||
-            !Enum.IsDefined(request.AccessPath) ||
-            string.IsNullOrWhiteSpace(request.UserName) ||
-            !UserNamePattern().IsMatch(request.UserName) ||
-            string.IsNullOrEmpty(request.Password) ||
-            request.Password.Length is < 20 or > 128)
+        if (!Enum.IsDefined(request.Operation) ||
+            request.Operation == HostSetupOperation.Apply &&
+            (string.IsNullOrWhiteSpace(request.ManagedFolder) ||
+             !Path.IsPathFullyQualified(request.ManagedFolder) ||
+             !Enum.IsDefined(request.AccessPath) ||
+             string.IsNullOrWhiteSpace(request.UserName) ||
+             !UserNamePattern().IsMatch(request.UserName) ||
+             string.IsNullOrEmpty(request.Password) ||
+             request.Password.Length is < 20 or > 128) ||
+            request.Operation == HostSetupOperation.StopSharing &&
+            (request.ManagedFolder.Length > 0 || request.UserName.Length > 0 || request.Password.Length > 0))
         {
             throw new ArgumentException("The host mutation request is invalid.", nameof(request));
         }
@@ -71,6 +86,7 @@ public sealed partial record HostSetupPowerShellCommand(
         startInfo.ArgumentList.Add(scriptPath);
 
         var input = JsonSerializer.Serialize(new MutationEnvelope(
+            request.Operation.ToString(),
             request.ManagedFolder,
             request.AccessPath.ToString(),
             request.UserName,
@@ -85,6 +101,7 @@ public sealed partial record HostSetupPowerShellCommand(
     private static partial Regex UserNamePattern();
 
     private sealed record MutationEnvelope(
+        string Operation,
         string ManagedFolder,
         string AccessPath,
         string UserName,

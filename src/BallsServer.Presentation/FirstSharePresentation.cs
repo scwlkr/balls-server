@@ -29,6 +29,7 @@ public enum HostSetupState
     Canceled,
     Refused,
     Failed,
+    Stopped,
 }
 
 public enum ClientConnectionState
@@ -48,6 +49,8 @@ public interface IHostSetupCoordinator
     Task<HostSetupResult> ApplyAsync(
         HostSetupPreview request,
         CancellationToken cancellationToken = default);
+
+    Task<HostSetupResult> StopSharingAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed class FirstSharePresentation : INotifyPropertyChanged
@@ -203,6 +206,40 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
         {
             SetHostSetupResult(await _hostSetupCoordinator
                 .ApplyAsync(HostPreview, cancellationToken)
+                .ConfigureAwait(true));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            SetHostSetupResult(HostSetupResult.Canceled());
+        }
+        catch (Exception)
+        {
+            SetHostSetupResult(HostSetupResult.Failed());
+        }
+    }
+
+    public async Task StopSharingAsync(CancellationToken cancellationToken = default)
+    {
+        if (_hostSetupState == HostSetupState.Applying)
+        {
+            return;
+        }
+
+        if (_hostSetupCoordinator is null)
+        {
+            SetHostSetupResult(HostSetupResult.Refused("Stop Sharing is unavailable in this build."));
+            return;
+        }
+
+        _hostSetupState = HostSetupState.Applying;
+        _hostSetupMessage = "Waiting for Windows approval to stop sharing…";
+        _generatedSetupCode = null;
+        NotifyHostSetupChanged();
+
+        try
+        {
+            SetHostSetupResult(await _hostSetupCoordinator
+                .StopSharingAsync(cancellationToken)
                 .ConfigureAwait(true));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -388,6 +425,7 @@ public sealed class FirstSharePresentation : INotifyPropertyChanged
             HostSetupResultStatus.Canceled => HostSetupState.Canceled,
             HostSetupResultStatus.Refused => HostSetupState.Refused,
             HostSetupResultStatus.Failed => HostSetupState.Failed,
+            HostSetupResultStatus.Stopped => HostSetupState.Stopped,
             _ => HostSetupState.Failed,
         };
         _hostSetupMessage = result.PublicMessage;

@@ -82,6 +82,25 @@ public sealed class FirstSharePresentationTests
     }
 
     [Fact]
+    public async Task StopSharingUsesTheProtectedCoordinatorAndPublishesFolderPreservation()
+    {
+        var coordinator = new RecordingHostSetupCoordinator(HostSetupResult.Completed("BALLS1.synthetic-code"));
+        var presentation = new FirstSharePresentation(
+            new AcceptingFolderValidator(),
+            TimeProvider.System,
+            coordinator);
+        var stopMethod = typeof(FirstSharePresentation).GetMethod("StopSharingAsync");
+
+        Assert.NotNull(stopMethod);
+        var operation = Assert.IsAssignableFrom<Task>(stopMethod.Invoke(presentation, [CancellationToken.None]));
+        await operation;
+
+        Assert.Equal(1, coordinator.StopSharingCalls);
+        Assert.Contains("folder and all files were preserved", presentation.HostSetupMessage, StringComparison.Ordinal);
+        Assert.Null(presentation.GeneratedSetupCode);
+    }
+
+    [Fact]
     public async Task ConnectUsesTheExactDecodedEndpointAndSelectedDrive()
     {
         var now = new DateTimeOffset(2026, 8, 17, 19, 0, 0, TimeSpan.Zero);
@@ -126,12 +145,20 @@ public sealed class FirstSharePresentationTests
     {
         public HostSetupPreview? Request { get; private set; }
 
+        public int StopSharingCalls { get; private set; }
+
         public Task<HostSetupResult> ApplyAsync(
             HostSetupPreview request,
             CancellationToken cancellationToken = default)
         {
             Request = request;
             return Task.FromResult(result);
+        }
+
+        public Task<HostSetupResult> StopSharingAsync(CancellationToken cancellationToken = default)
+        {
+            StopSharingCalls++;
+            return Task.FromResult(HostSetupResult.Stopped());
         }
     }
 

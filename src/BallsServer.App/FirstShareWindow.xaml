@@ -144,6 +144,12 @@
                        Text="{Binding HostSetupMessage}"
                        TextWrapping="Wrap"
                        Visibility="{Binding HostSetupStatusVisibility}" />
+            <Button Margin="0,14,0,0"
+                    HorizontalAlignment="Left"
+                    AutomationProperties.Name="Stop sharing hosted folder"
+                    Click="StopSharingButton_Click"
+                    Content="Stop Sharing"
+                    IsEnabled="{Binding CanStopSharing}" />
             <Border Margin="0,14,0,0"
                     Padding="16"
                     Background="#FFE8F5EC"

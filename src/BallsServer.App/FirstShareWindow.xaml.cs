@@ -99,6 +99,8 @@ public partial class FirstShareWindow : Window, INotifyPropertyChanged
 
     public string HostSetupMessage => _presentation.HostSetupMessage ?? string.Empty;
 
+    public bool CanStopSharing => _presentation.HostSetupState != HostSetupState.Applying;
+
     public Visibility HostSetupStatusVisibility => _presentation.HostSetupState == HostSetupState.Idle
         ? Visibility.Collapsed
         : Visibility.Visible;
@@ -176,6 +178,9 @@ public partial class FirstShareWindow : Window, INotifyPropertyChanged
 
     private async void ApplyHostSetupButton_Click(object sender, RoutedEventArgs e) =>
         await _presentation.ApplyHostSetupAsync();
+
+    private async void StopSharingButton_Click(object sender, RoutedEventArgs e) =>
+        await _presentation.StopSharingAsync();
 
     private void CopySetupCodeButton_Click(object sender, RoutedEventArgs e)
     {

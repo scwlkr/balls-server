@@ -12,7 +12,9 @@ namespace BallsServer.Windows;
 public sealed partial record HostSetupMutationOutput(
     string HostName,
     string ShareName,
-    string UserName)
+    string UserName,
+    bool AlreadyConfigured = false,
+    bool SharingStopped = false)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -40,7 +42,8 @@ public sealed partial record HostSetupMutationOutput(
             return new HostSetupMutationOutput(
                 envelope.HostName,
                 envelope.ShareName,
-                envelope.UserName);
+                envelope.UserName,
+                envelope.AlreadyConfigured);
         }
         catch (FormatException)
         {
@@ -49,6 +52,31 @@ public sealed partial record HostSetupMutationOutput(
         catch (Exception exception) when (exception is JsonException or NotSupportedException)
         {
             throw new FormatException("Host setup returned a malformed result.", exception);
+        }
+    }
+
+    public static HostSetupMutationOutput ParseStopSharing(string json)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+
+        try
+        {
+            var envelope = JsonSerializer.Deserialize<StopOutputEnvelope>(json, JsonOptions) ??
+                throw new FormatException("Stop Sharing returned an incomplete result.");
+            if (envelope.Status != "Stopped" || envelope.ShareName != "Balls")
+            {
+                throw new FormatException("Stop Sharing returned an invalid result.");
+            }
+
+            return new HostSetupMutationOutput(string.Empty, envelope.ShareName, string.Empty, false, true);
+        }
+        catch (FormatException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is JsonException or NotSupportedException)
+        {
+            throw new FormatException("Stop Sharing returned a malformed result.", exception);
         }
     }
 
@@ -101,6 +129,18 @@ public sealed partial record HostSetupMutationOutput(
 
         [JsonPropertyName("userName")]
         public required string UserName { get; init; }
+
+        [JsonPropertyName("alreadyConfigured")]
+        public bool AlreadyConfigured { get; init; }
+    }
+
+    private sealed record StopOutputEnvelope
+    {
+        [JsonPropertyName("status")]
+        public required string Status { get; init; }
+
+        [JsonPropertyName("shareName")]
+        public required string ShareName { get; init; }
     }
 }
 
@@ -146,7 +186,9 @@ public sealed class PowerShellHostSetupMutator : IHostSetupMutator
                 throw new HostSetupMutationException();
             }
 
-            return HostSetupMutationOutput.Parse(output.Trim(), request.AccessPath);
+            return request.Operation == HostSetupOperation.StopSharing
+                ? HostSetupMutationOutput.ParseStopSharing(output.Trim())
+                : HostSetupMutationOutput.Parse(output.Trim(), request.AccessPath);
         }
         catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {

@@ -5,6 +5,12 @@ namespace BallsServer.Core.Tests;
 public sealed class HostSetupProtocolTests
 {
     [Fact]
+    public void OperationDiscriminatorUsesANewProtocolVersion()
+    {
+        Assert.Equal(2, HostSetupProtocol.CurrentVersion);
+    }
+
+    [Fact]
     public void RequestRoundTripsWithoutExposingPrivateFieldsInDiagnostics()
     {
         var now = new DateTimeOffset(2026, 8, 17, 20, 0, 0, TimeSpan.Zero);
@@ -15,6 +21,7 @@ public sealed class HostSetupProtocolTests
             "S-1-5-21-100-200-300-1001",
             now,
             now.AddMinutes(2),
+            HostSetupOperation.Apply,
             @"C:\Private\Shared",
             AccessPathKind.Tailscale);
 
@@ -23,7 +30,7 @@ public sealed class HostSetupProtocolTests
             now.AddSeconds(1));
 
         Assert.Equal(request, decoded);
-        Assert.DoesNotContain(request.ManagedFolder, decoded.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(request.ManagedFolder!, decoded.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain(request.InitiatingUserSid, decoded.ToString(), StringComparison.Ordinal);
     }
 
@@ -38,6 +45,30 @@ public sealed class HostSetupProtocolTests
             HostSetupProtocol.DecodeRequest(HostSetupProtocol.EncodeRequest(expired), now));
         Assert.Throws<FormatException>(() =>
             HostSetupProtocol.DecodeRequest(HostSetupProtocol.EncodeRequest(extended), now));
+    }
+
+    [Fact]
+    public void RequestRequiresAnExplicitOperationAndAllowsOnlyPathlessStopSharing()
+    {
+        var now = new DateTimeOffset(2026, 8, 18, 20, 0, 0, TimeSpan.Zero);
+        var applyWithoutOperation =
+            "{\"Version\":2,\"OperationId\":\"0123456789abcdef0123456789abcdef\"," +
+            "\"Nonce\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"," +
+            "\"InitiatingUserSid\":\"S-1-5-21-100-200-300-1001\"," +
+            "\"IssuedAt\":\"2026-08-18T20:00:00+00:00\",\"ExpiresAt\":\"2026-08-18T20:02:00+00:00\"," +
+            "\"ManagedFolder\":\"C:\\\\Shared\",\"AccessPath\":0}";
+        var stopSharing =
+            "{\"Version\":2,\"OperationId\":\"0123456789abcdef0123456789abcdef\"," +
+            "\"Nonce\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"," +
+            "\"InitiatingUserSid\":\"S-1-5-21-100-200-300-1001\"," +
+            "\"IssuedAt\":\"2026-08-18T20:00:00+00:00\",\"ExpiresAt\":\"2026-08-18T20:02:00+00:00\"," +
+            "\"Operation\":1,\"ManagedFolder\":null,\"AccessPath\":null}";
+
+        Assert.Throws<FormatException>(() => HostSetupProtocol.DecodeRequest(applyWithoutOperation, now));
+        var decoded = HostSetupProtocol.DecodeRequest(stopSharing, now);
+
+        Assert.Contains("Operation = StopSharing", decoded.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(@"C:\", decoded.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -56,6 +87,20 @@ public sealed class HostSetupProtocolTests
         Assert.DoesNotContain("synthetic-secret", response.ToString(), StringComparison.Ordinal);
         Assert.Throws<FormatException>(() =>
             HostSetupProtocol.DecodeResponse(encoded.TrimEnd('}') + ",\"extra\":true}"));
+    }
+
+    [Fact]
+    public void ResponseRoundTripsStopSharingWithoutASetupSecret()
+    {
+        const string encoded =
+            "{\"Version\":2,\"OperationId\":\"0123456789abcdef0123456789abcdef\"," +
+            "\"Nonce\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"," +
+            "\"Status\":4,\"SetupCode\":null}";
+
+        var decoded = HostSetupProtocol.DecodeResponse(encoded);
+
+        Assert.Contains("Status = Stopped", decoded.Result.ToString(), StringComparison.Ordinal);
+        Assert.Null(decoded.Result.SetupCode);
     }
 
     [Fact]
@@ -78,6 +123,7 @@ public sealed class HostSetupProtocolTests
         "S-1-5-21-100-200-300-1001",
         issuedAt,
         expiresAt,
+        HostSetupOperation.Apply,
         @"C:\Shared",
         AccessPathKind.Local);
 }

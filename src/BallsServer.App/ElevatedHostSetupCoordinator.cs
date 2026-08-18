@@ -22,6 +22,23 @@ public sealed class ElevatedHostSetupCoordinator : IHostSetupCoordinator
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        return await ExecuteAsync(
+            HostSetupOperation.Apply,
+            request.ManagedFolder,
+            request.AccessPath,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task<HostSetupResult> StopSharingAsync(CancellationToken cancellationToken = default) =>
+        ExecuteAsync(HostSetupOperation.StopSharing, null, null, cancellationToken);
+
+    private static async Task<HostSetupResult> ExecuteAsync(
+        HostSetupOperation operationKind,
+        string? managedFolder,
+        AccessPathKind? accessPath,
+        CancellationToken cancellationToken)
+    {
+
         var helperPath = Path.Combine(AppContext.BaseDirectory, "BallsServer.Helper.exe");
         if (!File.Exists(helperPath))
         {
@@ -51,8 +68,9 @@ public sealed class ElevatedHostSetupCoordinator : IHostSetupCoordinator
             sid,
             now,
             now.AddMinutes(3),
-            request.ManagedFolder,
-            request.AccessPath);
+            operationKind,
+            managedFolder,
+            accessPath);
 
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         operation.CancelAfter(OperationTimeout);
@@ -90,7 +108,11 @@ public sealed class ElevatedHostSetupCoordinator : IHostSetupCoordinator
             var responseJson = await HelperPipeFrame.ReadAsync(pipe, operation.Token).ConfigureAwait(false);
             var response = HostSetupProtocol.DecodeResponse(responseJson);
             if (response.OperationId != protocolRequest.OperationId ||
-                response.Nonce != protocolRequest.Nonce)
+                response.Nonce != protocolRequest.Nonce ||
+                operationKind == HostSetupOperation.Apply &&
+                response.Result.Status == HostSetupResultStatus.Stopped ||
+                operationKind == HostSetupOperation.StopSharing &&
+                response.Result.Status != HostSetupResultStatus.Stopped)
             {
                 return HostSetupResult.Refused("The protected setup response did not match this request.");
             }

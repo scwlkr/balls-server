@@ -80,15 +80,18 @@ public partial class App : Application
         HostSetupRequest request,
         CancellationToken cancellationToken)
     {
-        var report = await WindowsPreflightFactory.CreateHostService()
-            .RunAsync(new PreflightRequest(request.ManagedFolder), cancellationToken);
-        var selectedPath = request.AccessPath == AccessPathKind.Local
-            ? report.LocalAccess
-            : report.TailscaleAccess;
-        if (!report.Computer.IsReady || !report.ManagedFolder.IsReady || !selectedPath.IsReady)
+        if (request.Operation == HostSetupOperation.Apply)
         {
-            return HostSetupResult.Refused(
-                "Host setup was refused because the selected folder or private access path is not ready.");
+            var report = await WindowsPreflightFactory.CreateHostService()
+                .RunAsync(new PreflightRequest(request.ManagedFolder!), cancellationToken);
+            var selectedPath = request.AccessPath == AccessPathKind.Local
+                ? report.LocalAccess
+                : report.TailscaleAccess;
+            if (!report.Computer.IsReady || !report.ManagedFolder.IsReady || !selectedPath.IsReady)
+            {
+                return HostSetupResult.Refused(
+                    "Host setup was refused because the selected folder or private access path is not ready.");
+            }
         }
 
         var approval = new HostSetupApprovalWindow(request);
@@ -97,20 +100,35 @@ public partial class App : Application
             return HostSetupResult.Canceled();
         }
 
-        var userName = HostCredentialGenerator.CreateUserName();
-        var password = HostCredentialGenerator.CreatePassword();
+        var userName = request.Operation == HostSetupOperation.Apply
+            ? HostCredentialGenerator.CreateUserName()
+            : string.Empty;
+        var password = request.Operation == HostSetupOperation.Apply
+            ? HostCredentialGenerator.CreatePassword()
+            : string.Empty;
         try
         {
             var output = await new PowerShellHostSetupMutator().ApplyAsync(
-                new HostSetupMutationRequest(
-                    request.ManagedFolder,
-                    request.AccessPath,
-                    userName,
-                    password),
+                request.Operation == HostSetupOperation.Apply
+                    ? new HostSetupMutationRequest(
+                        request.ManagedFolder!,
+                        request.AccessPath!.Value,
+                        userName,
+                        password)
+                    : HostSetupMutationRequest.StopSharing(),
                 cancellationToken);
+            if (output.SharingStopped)
+            {
+                return HostSetupResult.Stopped();
+            }
+            if (output.AlreadyConfigured)
+            {
+                return HostSetupResult.Refused(
+                    "Host setup is already configured and was verified without changing it. Stop Sharing before creating a new setup code.");
+            }
             var grant = new SetupCodeGrant(
                 SetupCodeCodec.CurrentVersion,
-                request.AccessPath,
+                request.AccessPath!.Value,
                 output.HostName,
                 output.ShareName,
                 output.UserName,

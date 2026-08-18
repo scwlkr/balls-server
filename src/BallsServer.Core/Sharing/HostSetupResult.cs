@@ -6,6 +6,7 @@ public enum HostSetupResultStatus
     Canceled,
     Refused,
     Failed,
+    Stopped,
 }
 
 public sealed record HostSetupResult(
@@ -39,6 +40,11 @@ public sealed record HostSetupResult(
     public static HostSetupResult Failed() => new(
         HostSetupResultStatus.Failed,
         "Host setup did not finish. Review the host state before trying again.",
+        null);
+
+    public static HostSetupResult Stopped() => new(
+        HostSetupResultStatus.Stopped,
+        "Sharing stopped. The selected folder and all files were preserved.",
         null);
 
     public override string ToString() =>

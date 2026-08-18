@@ -1,4 +1,7 @@
 using System.Runtime.ExceptionServices;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
 using System.Threading;
 using System.Windows;
 using System.Windows.Automation;
@@ -7,11 +10,74 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using BallsServer.Core.Sharing;
 using BallsServer.Presentation;
+using BallsServer.Windows;
 
 namespace BallsServer.App.Tests;
 
 public sealed class FirstShareWindowSmokeTests
 {
+    [Fact]
+    public async Task HelperRunsTheProductionOwnershipPolicyForWindowsPowerShell()
+    {
+        var helperPath = Path.Combine(AppContext.BaseDirectory, "BallsServer.Helper.dll");
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardInputEncoding = new UTF8Encoding(false),
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+        };
+        startInfo.ArgumentList.Add(helperPath);
+        startInfo.ArgumentList.Add("--ownership-policy");
+
+        using var process = new Process { StartInfo = startInfo };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        Assert.True(process.Start());
+        var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
+        await process.StandardInput.WriteAsync("{}".AsMemory(), timeout.Token);
+        process.StandardInput.Close();
+        await process.WaitForExitAsync(timeout.Token);
+
+        Assert.Equal(0, process.ExitCode);
+        Assert.Contains("\"status\":\"Unknown\"", await outputTask, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task HelperRunsStableFolderIdentityForWindowsPowerShell()
+    {
+        var helperPath = Path.Combine(AppContext.BaseDirectory, "BallsServer.Helper.dll");
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardInputEncoding = new UTF8Encoding(false),
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+        };
+        startInfo.ArgumentList.Add(helperPath);
+        startInfo.ArgumentList.Add("--folder-identity");
+
+        using var process = new Process { StartInfo = startInfo };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        Assert.True(process.Start());
+        var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
+        await process.StandardInput.WriteAsync(Path.GetTempPath().AsMemory(), timeout.Token);
+        process.StandardInput.Close();
+        await process.WaitForExitAsync(timeout.Token);
+
+        Assert.Equal(0, process.ExitCode);
+        Assert.Matches("^[0-9a-f]{8}:[0-9a-f]{16}$", (await outputTask).Trim());
+    }
+
     [Fact]
     public void HostAndConnectFlowsRenderAndRespondWithoutShowingAWindow()
     {
@@ -109,9 +175,12 @@ public sealed class FirstShareWindowSmokeTests
                 HostSetupOperation.Apply,
                 @"C:\Shared",
                 AccessPathKind.Local);
-            var approvalWindow = new BallsServer.Helper.HostSetupApprovalWindow(helperRequest);
+            var approvalWindow = new BallsServer.Helper.HostSetupApprovalWindow(
+                helperRequest,
+                new HostSetupMutationPreview(new string('a', 64), 4));
             RenderOffscreen(approvalWindow);
 
+            Assert.Contains("revision 4", approvalWindow.PlanReference, StringComparison.Ordinal);
             AssertAccessibleControl(approvalWindow, "Approved managed folder", typeof(TextBlock));
             AssertAccessibleControl(approvalWindow, "Cancel host setup", typeof(Button));
             AssertAccessibleControl(approvalWindow, "Approve host setup", typeof(Button));

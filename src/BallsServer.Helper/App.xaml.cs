@@ -11,6 +11,7 @@ namespace BallsServer.Helper;
 
 public partial class App : Application
 {
+    private const int MaximumPolicyInputCharacters = 128 * 1024;
     private static readonly TimeSpan ConnectionTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan OperationTimeout = TimeSpan.FromMinutes(3);
 
@@ -18,6 +19,51 @@ public partial class App : Application
     {
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+        if (e.Args is ["--ownership-policy"])
+        {
+            try
+            {
+                var input = await Console.In.ReadToEndAsync();
+                if (input.Length > MaximumPolicyInputCharacters)
+                {
+                    Shutdown(1);
+                    return;
+                }
+
+                Console.Out.Write(HostOwnershipPolicy.EvaluateJson(input));
+                Shutdown();
+            }
+            catch (Exception exception) when (exception is ArgumentException or FormatException)
+            {
+                Shutdown(1);
+            }
+
+            return;
+        }
+
+        if (e.Args is ["--folder-identity"])
+        {
+            try
+            {
+                var input = await Console.In.ReadToEndAsync();
+                if (input.Length is 0 or > 32767)
+                {
+                    Shutdown(1);
+                    return;
+                }
+
+                Console.Out.Write(WindowsFolderIdentity.Read(input.TrimEnd('\r', '\n')));
+                Shutdown();
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException or IOException or UnauthorizedAccessException)
+            {
+                Shutdown(1);
+            }
+
+            return;
+        }
 
         if (!TryReadPipeName(e.Args, out var pipeName))
         {
@@ -94,12 +140,6 @@ public partial class App : Application
             }
         }
 
-        var approval = new HostSetupApprovalWindow(request);
-        if (approval.ShowDialog() is not true)
-        {
-            return HostSetupResult.Canceled();
-        }
-
         var userName = request.Operation == HostSetupOperation.Apply
             ? HostCredentialGenerator.CreateUserName()
             : string.Empty;
@@ -108,14 +148,23 @@ public partial class App : Application
             : string.Empty;
         try
         {
-            var output = await new PowerShellHostSetupMutator().ApplyAsync(
-                request.Operation == HostSetupOperation.Apply
-                    ? new HostSetupMutationRequest(
-                        request.ManagedFolder!,
-                        request.AccessPath!.Value,
-                        userName,
-                        password)
-                    : HostSetupMutationRequest.StopSharing(),
+            var mutation = request.Operation == HostSetupOperation.Apply
+                ? new HostSetupMutationRequest(
+                    request.ManagedFolder!,
+                    request.AccessPath!.Value,
+                    userName,
+                    password)
+                : HostSetupMutationRequest.StopSharing();
+            var mutator = new PowerShellHostSetupMutator();
+            var preview = await mutator.PreviewAsync(mutation, cancellationToken);
+            var approval = new HostSetupApprovalWindow(request, preview);
+            if (approval.ShowDialog() is not true)
+            {
+                return HostSetupResult.Canceled();
+            }
+
+            var output = await mutator.ApplyAsync(
+                mutation with { ApprovedPlanDigest = preview.PlanDigest },
                 cancellationToken);
             if (output.SharingStopped)
             {

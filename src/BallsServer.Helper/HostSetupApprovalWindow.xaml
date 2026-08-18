@@ -38,6 +38,8 @@
           <TextBlock Margin="0,3,0,0" AutomationProperties.Name="Approved managed folder" FontFamily="Cascadia Mono" Text="{Binding ManagedFolder}" TextWrapping="Wrap" />
           <TextBlock Margin="0,12,0,0" FontWeight="SemiBold" Text="Private access path" />
           <TextBlock Margin="0,3,0,0" Text="{Binding AccessPathLabel}" />
+          <TextBlock Margin="0,12,0,0" FontWeight="SemiBold" Text="Authoritative plan" />
+          <TextBlock Margin="0,3,0,0" AutomationProperties.Name="Approved plan reference" FontFamily="Cascadia Mono" Text="{Binding PlanReference}" TextWrapping="Wrap" />
           <ItemsControl Margin="0,13,0,0" ItemsSource="{Binding Changes}">
             <ItemsControl.ItemTemplate>
               <DataTemplate>

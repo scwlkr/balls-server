@@ -9,6 +9,58 @@ using BallsServer.Core.Sharing;
 
 namespace BallsServer.Windows;
 
+public sealed partial record HostSetupMutationPreview(string PlanDigest, long Revision)
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = false,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+    };
+
+    public static HostSetupMutationPreview Parse(string json)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+        try
+        {
+            var envelope = JsonSerializer.Deserialize<PreviewEnvelope>(json, JsonOptions) ??
+                throw new FormatException("Host setup preview returned an incomplete result.");
+            if (envelope.Status != "PreviewReady" || envelope.Revision < 0 ||
+                !DigestPattern().IsMatch(envelope.PlanDigest))
+            {
+                throw new FormatException("Host setup preview returned an invalid result.");
+            }
+
+            return new HostSetupMutationPreview(envelope.PlanDigest, envelope.Revision);
+        }
+        catch (FormatException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is JsonException or NotSupportedException)
+        {
+            throw new FormatException("Host setup preview returned a malformed result.", exception);
+        }
+    }
+
+    public override string ToString() =>
+        $"MutationPreview {{ PlanDigest = {PlanDigest}, Revision = {Revision} }}";
+
+    [GeneratedRegex("^[0-9a-f]{64}$", RegexOptions.CultureInvariant)]
+    private static partial Regex DigestPattern();
+
+    private sealed record PreviewEnvelope
+    {
+        [JsonPropertyName("status")]
+        public required string Status { get; init; }
+
+        [JsonPropertyName("planDigest")]
+        public required string PlanDigest { get; init; }
+
+        [JsonPropertyName("revision")]
+        public required long Revision { get; init; }
+    }
+}
+
 public sealed partial record HostSetupMutationOutput(
     string HostName,
     string ShareName,
@@ -80,6 +132,11 @@ public sealed partial record HostSetupMutationOutput(
         }
     }
 
+    public override string ToString() =>
+        $"HostSetupMutationOutput {{ HostName = [REDACTED], ShareName = {ShareName}, " +
+        $"UserName = [REDACTED], AlreadyConfigured = {AlreadyConfigured}, " +
+        $"SharingStopped = {SharingStopped} }}";
+
     private static bool IsAllowedEndpoint(string hostName, AccessPathKind accessPath)
     {
         if (!IPAddress.TryParse(hostName, out var address))
@@ -146,6 +203,10 @@ public sealed partial record HostSetupMutationOutput(
 
 public interface IHostSetupMutator
 {
+    Task<HostSetupMutationPreview> PreviewAsync(
+        HostSetupMutationRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<HostSetupMutationOutput> ApplyAsync(
         HostSetupMutationRequest request,
         CancellationToken cancellationToken = default);
@@ -156,11 +217,46 @@ public sealed class PowerShellHostSetupMutator : IHostSetupMutator
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(2);
     private const int MaximumOutputCharacters = 16 * 1024;
 
+    public async Task<HostSetupMutationPreview> PreviewAsync(
+        HostSetupMutationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var output = await RunAsync(
+            HostSetupPowerShellCommand.CreatePreview(request),
+            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return HostSetupMutationPreview.Parse(output.Trim());
+        }
+        catch (FormatException)
+        {
+            throw new HostSetupMutationException();
+        }
+    }
+
     public async Task<HostSetupMutationOutput> ApplyAsync(
         HostSetupMutationRequest request,
         CancellationToken cancellationToken = default)
     {
-        var command = HostSetupPowerShellCommand.Create(request);
+        var output = await RunAsync(
+            HostSetupPowerShellCommand.Create(request),
+            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return request.Operation == HostSetupOperation.StopSharing
+                ? HostSetupMutationOutput.ParseStopSharing(output.Trim())
+                : HostSetupMutationOutput.Parse(output.Trim(), request.AccessPath);
+        }
+        catch (FormatException)
+        {
+            throw new HostSetupMutationException();
+        }
+    }
+
+    private static async Task<string> RunAsync(
+        HostSetupPowerShellCommand command,
+        CancellationToken cancellationToken)
+    {
         using var process = new Process { StartInfo = command.StartInfo };
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(Timeout);
@@ -186,9 +282,7 @@ public sealed class PowerShellHostSetupMutator : IHostSetupMutator
                 throw new HostSetupMutationException();
             }
 
-            return request.Operation == HostSetupOperation.StopSharing
-                ? HostSetupMutationOutput.ParseStopSharing(output.Trim())
-                : HostSetupMutationOutput.Parse(output.Trim(), request.AccessPath);
+            return output;
         }
         catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {

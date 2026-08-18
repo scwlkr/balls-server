@@ -1,21 +1,27 @@
 using System.Windows;
 using BallsServer.Core.Sharing;
+using BallsServer.Windows;
 
 namespace BallsServer.Helper;
 
 public partial class HostSetupApprovalWindow : Window
 {
     private readonly HostSetupRequest _request;
+    private readonly HostSetupMutationPreview _preview;
 
-    public HostSetupApprovalWindow(HostSetupRequest request)
+    public HostSetupApprovalWindow(HostSetupRequest request, HostSetupMutationPreview preview)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(preview);
         _request = request;
+        _preview = preview;
         InitializeComponent();
         DataContext = this;
     }
 
     public string ManagedFolder => _request.ManagedFolder ?? "The folder recorded in protected ownership state";
+
+    public string PlanReference => $"Authoritative plan revision {_preview.Revision}, reference {_preview.PlanDigest[..12]}";
 
     public string WindowTitle => _request.Operation == HostSetupOperation.StopSharing
         ? "Balls Server — Approve Stop Sharing"

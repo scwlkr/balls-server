@@ -8,7 +8,7 @@ This is the small index for project position and sequencing. Open only the linke
 | --- | --- |
 | Completed version | [v0.3.0 — Setup security and architecture design](roadmap/v0.3.0.md) |
 | Current milestone | [v0.4.0 — First Working Share](roadmap/v0.4.0.md), **In progress** |
-| Next action | Run Ticket 02 disposable-host mutation verification, then complete the two-computer Ticket 04 pilot. |
+| Next action | Complete Ticket 02 corrective review, run disposable-host mutation verification, then complete the two-computer Ticket 04 pilot. |
 | File-sharing destination | v1.0.0 official release |
 | Full product direction | v3.x Share Compute, after v2.x Balls Nodes |
 

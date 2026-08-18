@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -14,6 +15,11 @@ public sealed record HostSetupMutationRequest(
 {
     public HostSetupOperation Operation { get; init; } = HostSetupOperation.Apply;
 
+    public string? ApprovedPlanDigest { get; init; }
+
+    public string OwnershipSeed { get; init; } =
+        Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
+
     public static HostSetupMutationRequest StopSharing() => new(
         string.Empty,
         AccessPathKind.Local,
@@ -25,7 +31,7 @@ public sealed record HostSetupMutationRequest(
 
     public override string ToString() =>
         $"HostSetupMutationRequest {{ Operation = {Operation}, ManagedFolder = [REDACTED], AccessPath = {AccessPath}, " +
-        $"UserName = {UserName}, Password = [REDACTED] }}";
+        "UserName = [REDACTED], Password = [REDACTED] }";
 }
 
 public sealed partial record HostSetupPowerShellCommand(
@@ -34,10 +40,19 @@ public sealed partial record HostSetupPowerShellCommand(
 {
     public const string ScriptFileName = "HostSetup.ps1";
 
-    public static HostSetupPowerShellCommand Create(HostSetupMutationRequest request)
+    public static HostSetupPowerShellCommand CreatePreview(HostSetupMutationRequest request) =>
+        Create(request, "Preview");
+
+    public static HostSetupPowerShellCommand Create(HostSetupMutationRequest request) =>
+        Create(request, "Execute");
+
+    private static HostSetupPowerShellCommand Create(HostSetupMutationRequest request, string phase)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (!Enum.IsDefined(request.Operation) ||
+            request.ApprovedPlanDigest is not null && !PlanDigestPattern().IsMatch(request.ApprovedPlanDigest) ||
+            !OwnershipSeedPattern().IsMatch(request.OwnershipSeed) ||
+            phase == "Preview" && request.ApprovedPlanDigest is not null ||
             request.Operation == HostSetupOperation.Apply &&
             (string.IsNullOrWhiteSpace(request.ManagedFolder) ||
              !Path.IsPathFullyQualified(request.ManagedFolder) ||
@@ -86,6 +101,9 @@ public sealed partial record HostSetupPowerShellCommand(
         startInfo.ArgumentList.Add(scriptPath);
 
         var input = JsonSerializer.Serialize(new MutationEnvelope(
+            phase,
+            request.ApprovedPlanDigest,
+            request.OwnershipSeed,
             request.Operation.ToString(),
             request.ManagedFolder,
             request.AccessPath.ToString(),
@@ -100,7 +118,16 @@ public sealed partial record HostSetupPowerShellCommand(
     [GeneratedRegex("^BallsClient-[A-Z0-9]{6}$", RegexOptions.CultureInvariant)]
     private static partial Regex UserNamePattern();
 
+    [GeneratedRegex("^[0-9a-f]{64}$", RegexOptions.CultureInvariant)]
+    private static partial Regex PlanDigestPattern();
+
+    [GeneratedRegex("^[0-9a-f]{32}$", RegexOptions.CultureInvariant)]
+    private static partial Regex OwnershipSeedPattern();
+
     private sealed record MutationEnvelope(
+        string Phase,
+        string? ApprovedPlanDigest,
+        string OwnershipSeed,
         string Operation,
         string ManagedFolder,
         string AccessPath,

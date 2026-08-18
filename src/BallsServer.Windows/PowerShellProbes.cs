@@ -202,12 +202,12 @@ internal static class SmbConfigurationJsonParser
         return value switch
         {
             null => null,
-            "None" => SmbDialect.NoLimit,
-            "SMB202" => SmbDialect.Smb202,
-            "SMB210" => SmbDialect.Smb210,
-            "SMB300" => SmbDialect.Smb300,
-            "SMB302" => SmbDialect.Smb302,
-            "SMB311" => SmbDialect.Smb311,
+            "None" or "0" or "65535" or "65536" => SmbDialect.NoLimit,
+            "SMB202" or "514" => SmbDialect.Smb202,
+            "SMB210" or "528" => SmbDialect.Smb210,
+            "SMB300" or "768" => SmbDialect.Smb300,
+            "SMB302" or "770" => SmbDialect.Smb302,
+            "SMB311" or "785" => SmbDialect.Smb311,
             _ => SmbDialect.Unknown,
         };
     }

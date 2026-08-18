@@ -51,6 +51,25 @@ public sealed class SmbConfigurationJsonTests
         Assert.Equal(expected, configuration.DialectRange.Maximum);
     }
 
+    [Theory]
+    [InlineData("0", SmbDialect.NoLimit)]
+    [InlineData("514", SmbDialect.Smb202)]
+    [InlineData("528", SmbDialect.Smb210)]
+    [InlineData("768", SmbDialect.Smb300)]
+    [InlineData("770", SmbDialect.Smb302)]
+    [InlineData("785", SmbDialect.Smb311)]
+    [InlineData("65535", SmbDialect.NoLimit)]
+    [InlineData("65536", SmbDialect.NoLimit)]
+    public void ParseMapsNumericCimDialectValues(string value, SmbDialect expected)
+    {
+        var json = $$"""{"Smb2DialectMin":"{{value}}","Smb2DialectMax":"{{value}}"}""";
+
+        var configuration = SmbConfigurationJsonParser.Parse(json);
+
+        Assert.Equal(expected, configuration.DialectRange.Minimum);
+        Assert.Equal(expected, configuration.DialectRange.Maximum);
+    }
+
     [Fact]
     public async Task ProbeReturnsTypedDialectRange()
     {

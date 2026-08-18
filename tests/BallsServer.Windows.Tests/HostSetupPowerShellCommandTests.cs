@@ -33,6 +33,83 @@ public sealed class HostSetupPowerShellCommandTests
     }
 
     [Fact]
+    public async Task StandardInputRoundTripsAsJsonThroughWindowsPowerShell()
+    {
+        var command = HostSetupPowerShellCommand.Create(new HostSetupMutationRequest(
+            @"C:\Shared",
+            AccessPathKind.Local,
+            "BallsClient-7H4K2M",
+            "synthetic-password-47"));
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = command.StartInfo.FileName,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardInputEncoding = command.StartInfo.StandardInputEncoding,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+        };
+        startInfo.ArgumentList.Add("-NoLogo");
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-NonInteractive");
+        startInfo.ArgumentList.Add("-Command");
+        startInfo.ArgumentList.Add(
+            "$payload=[Console]::In.ReadToEnd()|ConvertFrom-Json;" +
+            "[Console]::Out.Write([string]$payload.AccessPath)");
+
+        using var process = new Process { StartInfo = startInfo };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        Assert.True(process.Start());
+        var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
+        var errorTask = process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.StandardInput.WriteAsync(command.StandardInput.AsMemory(), timeout.Token);
+        process.StandardInput.Close();
+        await process.WaitForExitAsync(timeout.Token);
+        var output = await outputTask;
+        var error = await errorTask;
+
+        Assert.Equal(0, process.ExitCode);
+        Assert.Equal("Local", output);
+        Assert.Empty(error);
+    }
+
+    [Fact]
+    public async Task CommandUsesTheNativeWindowsPowerShellModulePath()
+    {
+        var command = HostSetupPowerShellCommand.Create(new HostSetupMutationRequest(
+            @"C:\Shared",
+            AccessPathKind.Local,
+            "BallsClient-7H4K2M",
+            "synthetic-password-47"));
+        var startInfo = command.StartInfo;
+        startInfo.ArgumentList.Clear();
+        startInfo.ArgumentList.Add("-NoLogo");
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-NonInteractive");
+        startInfo.ArgumentList.Add("-Command");
+        startInfo.ArgumentList.Add(
+            "$ErrorActionPreference='Stop';" +
+            "ConvertTo-SecureString 'synthetic-password' -AsPlainText -Force|Out-Null;" +
+            "[Console]::Out.Write('ready')");
+
+        using var process = new Process { StartInfo = startInfo };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        Assert.True(process.Start());
+        var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
+        var errorTask = process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token);
+        var output = await outputTask;
+        var error = await errorTask;
+
+        Assert.Equal(0, process.ExitCode);
+        Assert.Equal("ready", output);
+        Assert.Empty(error);
+    }
+
+    [Fact]
     public void FixedScriptUsesNarrowShareFirewallAndRollbackOperations()
     {
         var command = HostSetupPowerShellCommand.Create(new HostSetupMutationRequest(

@@ -57,10 +57,11 @@ public sealed partial record HostSetupPowerShellCommand(
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            StandardInputEncoding = Encoding.UTF8,
+            StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
+        startInfo.Environment.Remove("PSModulePath");
         startInfo.ArgumentList.Add("-NoLogo");
         startInfo.ArgumentList.Add("-NoProfile");
         startInfo.ArgumentList.Add("-NonInteractive");

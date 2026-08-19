@@ -6,7 +6,7 @@ namespace BallsServer.Windows.Tests;
 public sealed class DistributionScriptTests
 {
     [Fact]
-    public void InstallerAndPublisherAreParseableAndPreserveExternalState()
+    public void RetiredInstallerAndHistoricalPublisherAreParseable()
     {
         var repository = FindRepositoryRoot();
         var installerPath = Path.Combine(repository, "install.ps1");
@@ -18,11 +18,11 @@ public sealed class DistributionScriptTests
         AssertPowerShellParses(publisherPath);
 
         var installer = File.ReadAllText(installerPath);
-        Assert.Contains("Get-FileHash", installer, StringComparison.Ordinal);
-        Assert.Contains("Start Menu", installer, StringComparison.Ordinal);
-        Assert.Contains("$InstallRoot", installer, StringComparison.Ordinal);
-        Assert.DoesNotContain("client-state.json", installer, StringComparison.Ordinal);
-        Assert.DoesNotContain("host-state.json", installer, StringComparison.Ordinal);
+        Assert.Contains("retired and unsupported", installer, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("https://github.com/scwlkr/balls", installer, StringComparison.Ordinal);
+        Assert.Contains("throw", installer, StringComparison.Ordinal);
+        Assert.DoesNotContain("Invoke-WebRequest", installer, StringComparison.Ordinal);
+        Assert.DoesNotContain("Invoke-RestMethod", installer, StringComparison.Ordinal);
         Assert.DoesNotContain("Invoke-Expression", installer, StringComparison.OrdinalIgnoreCase);
 
         var publisher = File.ReadAllText(publisherPath);

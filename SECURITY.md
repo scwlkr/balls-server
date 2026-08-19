@@ -1,11 +1,17 @@
 # Security policy
 
-## Reporting a vulnerability
+## Retired project
 
-Do not open a public issue for a suspected vulnerability or include credentials, private host or network identifiers, real file metadata, or unsanitized diagnostics in a report.
+Balls Server is retired and has no supported versions. Its unsigned pilot releases and assets
+remain available only as historical provenance and receive no ongoing security fixes. Do not use
+them for new installations.
 
-Use GitHub's private vulnerability reporting from this repository's **Security** tab. Include the affected version, impact, minimal reproduction steps using synthetic data, and any suggested mitigation.
+Active development moved to [Balls](https://github.com/scwlkr/balls), which is currently private
+while licensing and public-release decisions are finalized.
 
-## Supported versions
+## Reporting historical concerns
 
-Until the first official release, security fixes target the latest public commit and release artifact only.
+Do not open a public issue for a suspected vulnerability or include credentials, private host or
+network identifiers, real file metadata, or unsanitized diagnostics in a report. Use this
+repository's GitHub private vulnerability reporting while it remains available. A report does not
+create a promise that an archived pilot will be patched or republished.

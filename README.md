@@ -1,52 +1,44 @@
 # Balls Server
 
-Balls Server is a Windows desktop application for safely sharing files between approved PCs over a private LAN or Tailscale without exposing SMB to the public internet.
+> [!WARNING]
+> **Retired and unsupported as of August 19, 2026.** This was the original Windows
+> file-sharing prototype that led to the broader [Balls](https://github.com/scwlkr/balls)
+> platform. The successor repository is currently private while licensing and public-release
+> decisions are finalized.
 
-This is a public repository. Credentials, private host or network identifiers, real file metadata, and unsanitized diagnostics do not belong in source, history, issues, releases, or artifacts.
+Do not install the unsigned pilot releases for new use. The `main` branch installer now refuses
+to run. Existing tags, prereleases, assets, documentation, and source remain available only as
+historical provenance and implementation prior art.
 
-## Status
+## Historical status
 
-- **v0.1.0 — Complete:** unelevated, read-only Host Files preflight; 129 automated tests passed.
-- **v0.2.0 — Complete:** the accepted simple Host Dashboard has separate Local/Tailscale access-path readiness, corrected SMB/administrator policy, 210 passing automated tests, and complete supported-Windows UI/safety evidence.
-- **v0.3.0 — Complete:** the owner accepted the reviewed setup security and architecture design; the product remains read-only.
-- **v0.4.0 — In progress:** the public pilot implements consent-driven hosting, a setup code, and a persistent File Explorer drive over LAN or Tailscale. Disposable-machine mutation and two-computer pilot verification remain before milestone completion.
+- **v0.1.0 — Complete:** unelevated, read-only Host Files preflight.
+- **v0.2.0 — Complete:** accepted read-only Host Dashboard and readiness policy.
+- **v0.3.0 — Complete:** accepted setup security and architecture design.
+- **v0.4.0 — Retired incomplete:** the pilot was never accepted as a completed milestone;
+  disposable-machine and two-computer verification remained outstanding.
 
-[The roadmap](docs/ROADMAP.md) is the status source of truth. Its compact index links to each version's accomplished work, remaining work, exit checks, and evidence.
+Two later local commits are preserved without merge or release under
+[`archive/v0.4.0-completion-wip`](https://github.com/scwlkr/balls-server/tree/archive/v0.4.0-completion-wip).
+They remain unaccepted work in progress despite the original local branch name.
 
-## Product direction
+## Existing pilot installations
 
-- **Host Files** makes one selected read/write folder available to approved clients.
-- **Connect to Files** maps that managed share as a Windows drive.
-- **v1.0.0** is the first official file-sharing release.
-- **v2.x** introduces Balls Nodes and resource inventory.
-- **v3.x** introduces explicitly opt-in Share Compute for approved distributed workloads.
+Do not rerun the remote bootstrap. The archived project provides no supported version or ongoing
+security fixes. If a pilot changed Windows sharing state, preserve the managed folder and user
+files and consult the documentation matching that exact pilot before attempting cleanup. The
+unfinished project must not be treated as verified uninstall or recovery guidance.
 
-The v0.4 pilot includes a separate UAC helper for previewed Host Files changes and an unelevated native Windows client connector. It is intentionally unsigned and is not the official production release.
+## Historical product boundary
 
-## Install or update the Windows pilot
+Balls Server explored one Windows-managed folder shared over authenticated SMB 3.0+ on a private
+LAN or Tailscale path. It prohibited guest access, public TCP 445, router port forwarding, and
+general remote administration. Those findings are prior research; SMB, Tailscale, WPF, and one
+Windows host do not define the successor Balls architecture.
 
-Paste this one line into PowerShell on either Windows computer:
+## Historical build
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/scwlkr/balls-server/main/install.ps1' | iex"
-```
-
-The bootstrap downloads the newest public GitHub release, verifies its published SHA-256 checksum, replaces only `%LOCALAPPDATA%\Balls Server\App`, preserves product state stored outside that directory, creates a Start Menu shortcut, and launches Balls Server. Running the same line again updates the app.
-
-Windows shows **Unknown Publisher** when the unsigned Host Files helper requests UAC. Approve it only after intentionally clicking **Apply setup** and reviewing the Balls Server change preview. Client connection does not require elevation.
-
-## Safety boundary
-
-- Windows 11 Pro 24H2+ using C#, .NET 10, and WPF.
-- Authenticated SMB 3.0+ with SMB1 disabled and SMB signing preserved.
-- Private LAN or private Tailscale access paths, reported independently.
-- No guest access, public TCP 445, router port forwarding, or general remote administration.
-- No required Balls Server cloud account, advertising, or telemetry.
-- Repair, removal, upgrade, and uninstall never delete the managed folder or user files.
-
-## Build and test
-
-From a Windows development environment with the .NET 10 SDK:
+From a Windows environment with the pinned .NET 10 SDK:
 
 ```powershell
 dotnet restore
@@ -54,14 +46,12 @@ dotnet build
 dotnet test
 ```
 
-Default tests are unelevated and non-mutating. Windows Sandbox and isolated Hyper-V machines provide clean-machine and future topology coverage.
+Building historical source does not make the pilot supported or production-ready.
 
 ## Documentation
 
-- [Roadmap and current position](docs/ROADMAP.md)
-- [Product definition](docs/PRODUCT.md)
-- [Domain glossary](CONTEXT.md)
-- [Architecture and trust boundaries](docs/ARCHITECTURE.md)
-- [Host Files preflight contract](docs/PREFLIGHT.md)
-- [Testing strategy](docs/testing/README.md)
-- [Architecture decisions](docs/adr/)
+- [Retired roadmap and recorded evidence](docs/ROADMAP.md)
+- [Historical product definition](docs/PRODUCT.md)
+- [Historical domain glossary](CONTEXT.md)
+- [Historical architecture and trust boundaries](docs/ARCHITECTURE.md)
+- [Security policy](SECURITY.md)

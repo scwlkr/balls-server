@@ -1,5 +1,11 @@
 # Balls Server
 
+> [!WARNING]
+> **Archived, unsupported work in progress.** This branch was preserved without merge or release
+> when Balls Server was retired on August 19, 2026. It is not completion evidence. Active
+> development moved to [Balls](https://github.com/scwlkr/balls), currently private while
+> licensing and public-release decisions are finalized.
+
 Balls Server is a Windows desktop application for safely sharing files between approved PCs over a private LAN or Tailscale without exposing SMB to the public internet.
 
 This is a public repository. Credentials, private host or network identifiers, real file metadata, and unsanitized diagnostics do not belong in source, history, issues, releases, or artifacts.
@@ -23,17 +29,11 @@ This is a public repository. Credentials, private host or network identifiers, r
 
 The v0.4 pilot includes a separate UAC helper for previewed Host Files changes and an unelevated native Windows client connector. It is intentionally unsigned and is not the official production release.
 
-## Install or update the Windows pilot
+## Installation disabled
 
-Paste this one line into PowerShell on either Windows computer:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/scwlkr/balls-server/main/install.ps1' | iex"
-```
-
-The bootstrap downloads the newest public GitHub release, verifies its published SHA-256 checksum, replaces only `%LOCALAPPDATA%\Balls Server\App`, preserves product state stored outside that directory, creates a Start Menu shortcut, and launches Balls Server. Running the same line again updates the app.
-
-Windows shows **Unknown Publisher** when the unsigned Host Files helper requests UAC. Approve it only after intentionally clicking **Apply setup** and reviewing the Balls Server change preview. Client connection does not require elevation.
+Do not install this branch or the unsigned pilot releases for new use. The branch-local
+`install.ps1` now refuses to download or change files. Tags and release assets remain only as
+historical provenance.
 
 ## Safety boundary
 

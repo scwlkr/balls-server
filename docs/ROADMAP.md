@@ -2,6 +2,10 @@
 
 This is the small index for project position and sequencing. Open only the linked version file needed for scope, completed work, remaining work, checks, and evidence.
 
+> [!WARNING]
+> **Archived, unsupported work in progress.** This branch was preserved without merge, owner
+> acceptance, or a completion tag when Balls Server was retired on August 19, 2026.
+
 ## Current position
 
 | Item | Position |
